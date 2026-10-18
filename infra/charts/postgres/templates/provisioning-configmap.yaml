@@ -4,6 +4,8 @@ kind: ConfigMap
 metadata:
   name: postgres-provisioning
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 data:
   provision.sh: |
     #!/bin/sh

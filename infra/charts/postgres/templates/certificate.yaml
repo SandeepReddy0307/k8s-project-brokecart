@@ -3,6 +3,8 @@ kind: Certificate
 metadata:
   name: postgres
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   secretName: {{ .Values.tls.secretName | quote }}
   duration: 2160h

@@ -1,0 +1,76 @@
+configs:
+  cm:
+    resource.customizations.health.external-secrets.io_SecretStore: |
+      local health = {
+        status = "Progressing",
+        message = "Waiting for SecretStore readiness"
+      }
+
+      if obj.status and obj.status.conditions then
+        for _, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" then
+            health.message = condition.message or condition.reason or ""
+
+            if condition.status == "True" then
+              health.status = "Healthy"
+            elseif condition.status == "False" then
+              health.status = "Degraded"
+            end
+
+            return health
+          end
+        end
+      end
+
+      return health
+
+    resource.customizations.health.external-secrets.io_ExternalSecret: |
+      local health = {
+        status = "Progressing",
+        message = "Waiting for credential synchronization"
+      }
+
+      if obj.status and obj.status.conditions then
+        for _, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" then
+            health.message = condition.message or condition.reason or ""
+
+            if condition.status == "True" then
+              health.status = "Healthy"
+            elseif condition.status == "False" then
+              health.status = "Degraded"
+            end
+
+            return health
+          end
+        end
+      end
+
+      return health
+
+    resource.customizations.health.cert-manager.io_Certificate: |
+      local health = {
+        status = "Progressing",
+        message = "Waiting for certificate issuance"
+      }
+
+      if obj.status and obj.status.conditions then
+        for _, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" then
+            if condition.observedGeneration and
+               condition.observedGeneration ~= obj.metadata.generation then
+              return health
+            end
+
+            health.message = condition.message or condition.reason or ""
+
+            if condition.status == "True" then
+              health.status = "Healthy"
+            end
+
+            return health
+          end
+        end
+      end
+
+      return health

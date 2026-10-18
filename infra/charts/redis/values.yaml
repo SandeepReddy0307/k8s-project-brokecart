@@ -1,0 +1,31 @@
+image:
+  repository: redis
+  tag: "7.4.11-alpine3.21"
+  pullPolicy: IfNotPresent
+
+auth:
+  existingSecret: redis-auth
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: redis-secrets
+  serviceAccount: redis-secrets
+  credentialPath: brokecart/redis/auth
+
+storage:
+  storageClassName: standard
+  size: 2Gi
+
+redis:
+  maxmemory: 256mb
+  maxmemoryPolicy: noeviction
+  appendonly: true
+  appendfsync: everysec
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
