@@ -1,0 +1,15 @@
+{
+  "cluster": [],
+  "indices": [
+    {
+      "names": [
+        "brokecart-products"
+      ],
+      "privileges": [
+        "read",
+        "write",
+        "create_index"
+      ]
+    }
+  ]
+}

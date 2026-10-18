@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: {{ .Values.tls.secretName | quote }}
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+  usages: [digital signature, key encipherment, server auth, client auth]
+  dnsNames:
+    - elasticsearch
+    - elasticsearch.{{ .Release.Namespace }}.svc
+    - elasticsearch.{{ .Release.Namespace }}.svc.cluster.local
+    - elasticsearch-0.elasticsearch-headless.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ .Values.tls.clusterIssuer | quote }}
+    kind: ClusterIssuer

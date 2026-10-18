@@ -1,0 +1,33 @@
+# Pinned to the application's tested Elasticsearch baseline.
+image:
+  repository: docker.elastic.co/elasticsearch/elasticsearch
+  tag: "8.17.6"
+  pullPolicy: IfNotPresent
+
+storage:
+  storageClassName: standard
+  size: 5Gi
+
+auth:
+  adminSecret: elasticsearch-admin
+  searchSecret: search-elasticsearch-credentials
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: elasticsearch-secrets
+  serviceAccount: elasticsearch-secrets
+  adminPath: brokecart/elasticsearch/admin
+  searchPath: brokecart/search/elasticsearch
+
+tls:
+  secretName: elasticsearch-tls
+  clusterIssuer: brokecart-local-ca
+
+heap: "-Xms512m -Xmx512m"
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    memory: 1536Mi

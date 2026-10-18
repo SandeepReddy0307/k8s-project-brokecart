@@ -1,0 +1,6 @@
+apiVersion: v2
+name: brokecart-elasticsearch
+description: Persistent HTTPS Elasticsearch for BrokeCart product search
+type: application
+version: 0.1.0
+appVersion: "8.17.6"

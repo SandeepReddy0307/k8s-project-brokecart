@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  elasticsearch.yml: |
+    cluster.name: brokecart
+    node.name: elasticsearch-0
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    # Avoid host sysctl changes and privileged init containers on local kind.
+    node.store.allow_mmap: false
+    xpack.security.enabled: true
+    xpack.security.autoconfiguration.enabled: false
+    xpack.security.http.ssl.enabled: true
+    xpack.security.http.ssl.key: /usr/share/elasticsearch/config/tls/tls.key
+    xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/tls/tls.crt
+    xpack.security.http.ssl.certificate_authorities: ["/usr/share/elasticsearch/config/tls/ca.crt"]
+    xpack.security.transport.ssl.enabled: true
+    xpack.security.transport.ssl.verification_mode: full
+    xpack.security.transport.ssl.key: /usr/share/elasticsearch/config/tls/tls.key
+    xpack.security.transport.ssl.certificate: /usr/share/elasticsearch/config/tls/tls.crt
+    xpack.security.transport.ssl.certificate_authorities: ["/usr/share/elasticsearch/config/tls/ca.crt"]
+    xpack.ml.enabled: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-scripts
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  {{- range $name := list "prepare-config.sh" "start.sh" "check-ready.sh" "provision.sh" "search-role.json" "product-index.json" }}
+  {{ $name }}: |
+    {{- $.Files.Get (printf "files/%s" $name) | nindent 4 }}
+  {{- end }}

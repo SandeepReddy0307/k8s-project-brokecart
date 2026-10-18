@@ -1,0 +1,21 @@
+{{- range $headless := list false true }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch{{ if $headless }}-headless{{ end }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  {{- if $headless }}
+  clusterIP: None
+  {{- end }}
+  selector:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/instance: {{ $.Release.Name | quote }}
+  ports:
+    - name: https
+      port: 9200
+      targetPort: https
+{{- end }}

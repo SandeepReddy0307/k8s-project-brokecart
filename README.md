@@ -85,7 +85,7 @@ From the root, `python3 tests/real_dependencies.py` runs those contracts against
 
 Read [architecture](docs/architecture.md), [configuration](docs/configuration.md), and [verification](docs/verification.md) before writing the deployment.
 
-Kafka infrastructure configuration, secret bootstrap, read-only Kafka UI, and verification are documented in [Kafka setup](docs/kafka-setup.md). These charts are prepared for the planned Argo CD deployment; they are not installed by building application images.
+Kafka infrastructure configuration, secret bootstrap, read-only Kafka UI, and verification are documented in [Kafka setup](docs/kafka-setup.md). Elasticsearch persistence, TLS and search-user provisioning are documented in [Elasticsearch setup](docs/elasticsearch-setup.md). These charts are prepared for the planned Argo CD deployment; they are not installed by building application images.
 
 ## Scope and limits
 
