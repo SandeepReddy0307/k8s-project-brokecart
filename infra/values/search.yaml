@@ -9,8 +9,8 @@ deployment:
 monitoring:
   enabled: true
 image:
-  repository: docker.io/replace-with-your-dockerhub-user/brokecart-search
-  tag: pending-ci
+  repository: "docker.io/sandeep030701/brokecart-search"
+  tag: "2655e3a2b8c08741692e858c194dc6d161f89655"
 database:
   secretName: search-database-credentials
 security:
