@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-startup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  start-kafka.sh: |
+{{ required "Missing files/start-kafka.sh" (.Files.Get "files/start-kafka.sh") | indent 4 }}

@@ -1,0 +1,132 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topic-provisioning
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka-topic-provisioning
+    spec:
+      restartPolicy: Never
+      serviceAccountName: kafka
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: create-topics
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              set -euo pipefail
+              source /scripts/admin-client.sh
+
+              attempts=0
+
+              until timeout 20s /opt/kafka/bin/kafka-topics.sh \
+                --bootstrap-server "$BOOTSTRAP_SERVERS" \
+                --command-config "$CLIENT_CONFIG" \
+                --list >/dev/null 2>&1; do
+
+                attempts=$((attempts + 1))
+
+                if [ "$attempts" -ge 30 ]; then
+                  echo "Kafka API did not become available" >&2
+                  exit 1
+                fi
+
+                echo "Waiting for Kafka API"
+                sleep 5
+              done
+
+              /bin/bash /scripts/create-topics.sh
+              exec /bin/bash /scripts/apply-acls.sh
+
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: {{ printf "kafka.%s.svc.cluster.local:9092" .Release.Namespace | quote }}
+
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xms64m -Xmx128m"
+
+            - name: LOG_DIR
+              value: /tmp/kafka-tools-logs
+
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:ActiveProcessorCount=2"
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+
+            - name: tmp
+              mountPath: /tmp
+
+            - name: broker-auth
+              mountPath: /etc/kafka-auth
+              readOnly: true
+
+            - name: tls
+              mountPath: /etc/kafka-tls
+              readOnly: true
+
+      volumes:
+        - name: scripts
+          configMap:
+            name: kafka-topic-provisioning
+
+        - name: tmp
+          emptyDir: {}
+
+        - name: broker-auth
+          secret:
+            secretName: {{ .Values.auth.existingSecret | quote }}
+            defaultMode: 0440
+            items:
+              - key: admin-username
+                path: admin-username
+              - key: admin-password
+                path: admin-password
+              - key: keystore-password
+                path: keystore-password
+
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName | quote }}
+            defaultMode: 0440
+            items:
+              - key: truststore.p12
+                path: truststore.p12

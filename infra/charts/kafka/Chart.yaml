@@ -1,0 +1,6 @@
+apiVersion: v2
+name: brokecart-kafka
+description: Three-node KRaft Kafka cluster for BrokeCart
+type: application
+version: 0.1.0
+appVersion: "3.9.1"

@@ -1,0 +1,151 @@
+image:
+  repository: apache/kafka
+  tag: "3.9.1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+kraft:
+  clusterId: "nT167drHQVa5uUTVa_payA"
+
+storage:
+  storageClassName: standard
+  size: 5Gi
+
+jvm:
+  heapOpts: "-Xms256m -Xmx512m"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+topics:
+  partitions: 3
+  replicationFactor: 3
+  minInSyncReplicas: 2
+  retentionHours: 72
+  createDeadLetterTopics: true
+
+  names:
+    - catalog.events
+    - inventory.commands
+    - inventory.events
+    - payments.commands
+    - payments.events
+    - shipping.commands
+    - shipping.events
+    - orders.events
+    - returns.events
+
+auth:
+  existingSecret: kafka-broker-auth
+
+  clients:
+    - kafka-ui
+    - catalog
+    - pricing
+    - identity
+    - cart
+    - checkout
+    - orders
+    - inventory
+    - payments
+    - payment-provider
+    - shipping
+    - returns
+    - notifications
+    - search
+    - reporting
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: kafka-secrets
+  serviceAccount: kafka-secrets
+  credentialPath: brokecart/kafka/broker
+
+tls:
+  secretName: kafka-tls
+  clusterIssuer: brokecart-local-ca
+
+acls:
+  ui:
+    enabled: true
+    username: brokecart_kafka_ui
+
+  services:
+    catalog:
+      produces:
+        - catalog.events
+      consumes: []
+
+    inventory:
+      group: inventory-service
+      produces:
+        - inventory.events
+      consumes:
+        - inventory.commands
+        - orders.events
+
+    orders:
+      group: orders-service
+      produces:
+        - orders.events
+        - inventory.commands
+        - payments.commands
+        - shipping.commands
+      consumes:
+        - inventory.events
+        - payments.events
+        - shipping.events
+        - returns.events
+
+    payments:
+      group: payments-service
+      produces:
+        - payments.events
+      consumes:
+        - payments.commands
+
+    shipping:
+      group: shipping-service
+      produces:
+        - shipping.events
+      consumes:
+        - shipping.commands
+
+    returns:
+      group: returns-service
+      produces:
+        - returns.events
+        - payments.commands
+        - inventory.commands
+      consumes:
+        - payments.events
+
+    notifications:
+      group: notifications-service
+      produces: []
+      consumes:
+        - orders.events
+        - shipping.events
+        - returns.events
+
+    search:
+      group: search-service
+      produces: []
+      consumes:
+        - catalog.events
+
+    reporting:
+      group: reporting-service
+      produces: []
+      consumes:
+        - orders.events
+
+pdb:
+  enabled: true
+  minAvailable: 2

@@ -1,0 +1,44 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kafka
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: {{ .Values.tls.secretName | quote }}
+
+  commonName: brokecart-kafka
+  duration: 2160h
+  renewBefore: 360h
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth
+
+  dnsNames:
+    - kafka
+    - kafka.{{ .Release.Namespace }}.svc
+    - kafka.{{ .Release.Namespace }}.svc.cluster.local
+    {{- range $index := until (int .Values.replicaCount) }}
+    - kafka-{{ $index }}.kafka-headless.{{ $.Release.Namespace }}.svc.cluster.local
+    {{- end }}
+
+  keystores:
+    pkcs12:
+      create: true
+      profile: Modern2023
+      passwordSecretRef:
+        name: {{ .Values.auth.existingSecret | quote }}
+        key: keystore-password
+
+  issuerRef:
+    name: {{ .Values.tls.clusterIssuer | quote }}
+    kind: ClusterIssuer

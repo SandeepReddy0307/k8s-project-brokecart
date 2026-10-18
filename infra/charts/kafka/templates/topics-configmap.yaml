@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-topic-provisioning
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  admin-client.sh: |
+{{ required "Missing files/admin-client.sh" (.Files.Get "files/admin-client.sh") | indent 4 }}
+
+  create-topics.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    : "${BOOTSTRAP_SERVERS:?Missing Kafka bootstrap servers}"
+    : "${CLIENT_CONFIG:?Missing Kafka client configuration}"
+
+    create_topic() {
+      topic="$1"
+
+      echo "Ensuring topic exists: $topic"
+
+      /opt/kafka/bin/kafka-topics.sh \
+        --bootstrap-server "$BOOTSTRAP_SERVERS" \
+        --command-config "$CLIENT_CONFIG" \
+        --create \
+        --if-not-exists \
+        --topic "$topic" \
+        --partitions {{ .Values.topics.partitions }} \
+        --replication-factor {{ .Values.topics.replicationFactor }} \
+        --config min.insync.replicas={{ .Values.topics.minInSyncReplicas }} \
+        --config retention.ms={{ mul (int .Values.topics.retentionHours) 3600000 }}
+    }
+
+    for topic in {{ join " " .Values.topics.names }}; do
+      create_topic "$topic"
+
+      {{- if .Values.topics.createDeadLetterTopics }}
+      create_topic "$topic.DLT"
+      {{- end }}
+    done
+
+    echo "Kafka topic provisioning completed"
+
+  apply-acls.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    : "${BOOTSTRAP_SERVERS:?Missing Kafka bootstrap servers}"
+    : "${CLIENT_CONFIG:?Missing Kafka client configuration}"
+
+    grant_access() {
+      /opt/kafka/bin/kafka-acls.sh \
+        --bootstrap-server "$BOOTSTRAP_SERVERS" \
+        --command-config "$CLIENT_CONFIG" \
+        --add \
+        --allow-principal "$principal" \
+        --allow-host '*' \
+        "$@"
+    }
+
+    {{- range $service, $permissions := .Values.acls.services }}
+    {{- if not (has $service $.Values.auth.clients) }}
+    {{- fail (printf "ACL service %s is missing from auth.clients" $service) }}
+    {{- end }}
+
+    # Username matches infra/bootstrap/kafka-credentials.sh.
+    principal={{ printf "User:brokecart_%s" (replace "-" "_" $service) | quote }}
+    echo "Applying Kafka ACLs for {{ $service }}"
+
+    grant_access --cluster --operation IdempotentWrite
+
+    {{- range $permissions.produces }}
+    grant_access --topic {{ . | quote }} --resource-pattern-type literal --operation Write
+    {{- end }}
+
+    {{- if $permissions.consumes }}
+    grant_access --group {{ required (printf "Missing consumer group for %s" $service) $permissions.group | quote }} --resource-pattern-type literal --operation Read
+    {{- range $permissions.consumes }}
+    grant_access --topic {{ . | quote }} --resource-pattern-type literal --operation Read
+    {{- if $.Values.topics.createDeadLetterTopics }}
+    grant_access --topic {{ printf "%s.DLT" . | quote }} --resource-pattern-type literal --operation Write
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.acls.ui.enabled }}
+
+    # The UI can inspect brokers/groups and read application topics; it cannot write.
+    principal={{ printf "User:%s" .Values.acls.ui.username | quote }}
+    echo "Applying read-only Kafka UI ACLs"
+    grant_access --cluster --operation Describe --operation DescribeConfigs
+    grant_access --group '*' --resource-pattern-type literal --operation Describe
+    {{- range .Values.topics.names }}
+    grant_access --topic {{ . | quote }} --resource-pattern-type literal --operation Read --operation DescribeConfigs
+    {{- if $.Values.topics.createDeadLetterTopics }}
+    grant_access --topic {{ printf "%s.DLT" . | quote }} --resource-pattern-type literal --operation Read --operation DescribeConfigs
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    echo "Kafka ACL provisioning completed"

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-ui-ca
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  ca.crt: |
+{{ required "Missing files/openbao-ca.crt" (.Files.Get "files/openbao-ca.crt") | indent 4 }}

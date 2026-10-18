@@ -85,6 +85,8 @@ From the root, `python3 tests/real_dependencies.py` runs those contracts against
 
 Read [architecture](docs/architecture.md), [configuration](docs/configuration.md), and [verification](docs/verification.md) before writing the deployment.
 
+Kafka infrastructure configuration, secret bootstrap, read-only Kafka UI, and verification are documented in [Kafka setup](docs/kafka-setup.md). These charts are prepared for the planned Argo CD deployment; they are not installed by building application images.
+
 ## Scope and limits
 
 This is a production-style learning application, not an audited production retail platform. Payment settlement is simulated, notifications are an in-app inbox, shipping is operator-driven, returns cover whole orders, and seed products are fictional. Tax, real carriers, email/SMS delivery, MFA, password recovery, key rotation, DLT replay tooling and regulatory compliance are not implemented. Lists/projections currently cap scans at 1,000 records and need pagination for larger workloads. Operational security, backups, retention, availability and resource sizing belong to the infrastructure you will build.

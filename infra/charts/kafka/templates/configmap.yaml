@@ -1,0 +1,56 @@
+{{- include "brokecart.kafka.validate" . }}
+{{- $voters := list }}
+{{- range $index := until (int .Values.replicaCount) }}
+{{- $address := printf "%d@kafka-%d.kafka-headless.%s.svc.cluster.local:9093" $index $index $.Release.Namespace }}
+{{- $voters = append $voters $address }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  server.properties: |
+    process.roles=broker,controller
+
+    controller.quorum.voters={{ join "," $voters }}
+    controller.listener.names=CONTROLLER
+
+    listeners=CLIENT://:9092,CONTROLLER://:9093,INTERNAL://:9094
+    listener.security.protocol.map=CLIENT:SASL_SSL,CONTROLLER:SSL,INTERNAL:SSL
+    inter.broker.listener.name=INTERNAL
+
+    ssl.keystore.type=PKCS12
+    ssl.keystore.location=/etc/kafka-tls/keystore.p12
+    ssl.truststore.type=PKCS12
+    ssl.truststore.location=/etc/kafka-tls/truststore.p12
+    ssl.endpoint.identification.algorithm=https
+
+    ssl.client.auth=required
+    listener.name.client.ssl.client.auth=none
+
+    sasl.enabled.mechanisms=PLAIN
+    listener.name.client.sasl.enabled.mechanisms=PLAIN
+
+    authorizer.class.name=org.apache.kafka.metadata.authorizer.StandardAuthorizer
+    allow.everyone.if.no.acl.found=false
+
+    log.dirs=/var/lib/kafka/data
+
+    num.partitions={{ .Values.topics.partitions }}
+    default.replication.factor={{ .Values.topics.replicationFactor }}
+    min.insync.replicas={{ .Values.topics.minInSyncReplicas }}
+
+    offsets.topic.replication.factor={{ .Values.topics.replicationFactor }}
+    transaction.state.log.replication.factor={{ .Values.topics.replicationFactor }}
+    transaction.state.log.min.isr={{ .Values.topics.minInSyncReplicas }}
+
+    auto.create.topics.enable=false
+    unclean.leader.election.enable=false
+
+    log.retention.hours={{ .Values.topics.retentionHours }}
+
+    num.network.threads=3
+    num.io.threads=4

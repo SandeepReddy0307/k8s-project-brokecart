@@ -1,0 +1,111 @@
+kafka-ui:
+  fullnameOverride: kafka-ui
+
+  replicaCount: 1
+
+  image:
+    registry: ghcr.io
+    repository: kafbat/kafka-ui
+    tag: v1.5.0
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+
+  serviceAccount:
+    create: false
+    name: kafka-ui
+
+  podSecurityContext:
+    fsGroup: 2000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 2000
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+  envs:
+    config:
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:ActiveProcessorCount=2"
+      AUTH_TYPE: LOGIN_FORM
+      DYNAMIC_CONFIG_ENABLED: "false"
+
+    secretMappings:
+      SPRING_SECURITY_USER_NAME:
+        name: kafka-ui-auth
+        keyName: username
+
+      SPRING_SECURITY_USER_PASSWORD:
+        name: kafka-ui-auth
+        keyName: password
+
+      KAFKA_SASL_JAAS_CONFIG:
+        name: kafka-ui-client
+        keyName: sasl-jaas-config
+
+  yamlApplicationConfig:
+    kafka:
+      clusters:
+        - name: brokecart
+          bootstrapServers: kafka.brokecart-kafka.svc.cluster.local:9092
+          readOnly: true
+          properties:
+            security.protocol: SASL_SSL
+            sasl.mechanism: PLAIN
+            sasl.jaas.config: "${KAFKA_SASL_JAAS_CONFIG}"
+            ssl.truststore.type: PEM
+            ssl.truststore.location: /etc/kafka-ca/ca.crt
+            ssl.endpoint.identification.algorithm: https
+          consumerProperties:
+            enable.auto.commit: false
+          audit:
+            topicAuditEnabled: false
+            consoleAuditEnabled: false
+
+  volumeMounts:
+    - name: kafka-ca
+      mountPath: /etc/kafka-ca
+      readOnly: true
+    - name: tmp
+      mountPath: /tmp
+
+  volumes:
+    - name: kafka-ca
+      configMap:
+        name: kafka-ui-ca
+    - name: tmp
+      emptyDir: {}
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: kafka-ui-secrets
+  serviceAccount: kafka-ui-secrets
+  credentialPath: brokecart/kafka-ui/auth
+  kafkaCredentialPath: brokecart/kafka-ui/kafka
+
+route:
+  hostname: kafka.brokecart.com
+  gatewayName: brokecart-gateway
+  gatewayNamespace: kong
+  listener: https

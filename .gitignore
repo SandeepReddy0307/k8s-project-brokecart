@@ -11,3 +11,6 @@ data/
 
 __pycache__/
 *.pyc
+
+# Restored using Chart.lock and helm dependency build.
+infra/charts/*/charts/

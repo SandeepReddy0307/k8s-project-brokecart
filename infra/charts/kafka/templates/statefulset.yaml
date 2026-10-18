@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  serviceName: kafka-headless
+  replicas: {{ .Values.replicaCount }}
+  podManagementPolicy: Parallel
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum | quote }}
+        checksum/startup: {{ include (print $.Template.BasePath "/startup-configmap.yaml") . | sha256sum | quote }}
+
+    spec:
+      serviceAccountName: kafka
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kafka
+                    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+                topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: kafka
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          command:
+            - /bin/bash
+            - /scripts/start-kafka.sh
+
+          ports:
+            - name: client
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+            - name: internal
+              containerPort: 9094
+
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+            - name: CLUSTER_ID
+              value: {{ required "Set kraft.clusterId before rendering Kafka" .Values.kraft.clusterId | quote }}
+
+            - name: KAFKA_HEAP_OPTS
+              value: {{ .Values.jvm.heapOpts | quote }}
+
+            - name: LOG_DIR
+              value: /tmp/kafka-logs
+
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:ActiveProcessorCount=2"
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          startupProbe:
+            tcpSocket:
+              port: client
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+
+          readinessProbe:
+            tcpSocket:
+              port: client
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            tcpSocket:
+              port: client
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+
+            - name: config
+              mountPath: /etc/kafka-config
+              readOnly: true
+
+            - name: tmp
+              mountPath: /tmp
+
+            - name: startup
+              mountPath: /scripts
+              readOnly: true
+
+            - name: broker-auth
+              mountPath: /etc/kafka-auth
+              readOnly: true
+
+            - name: tls
+              mountPath: /etc/kafka-tls
+              readOnly: true
+
+            {{- range .Values.auth.clients }}
+            - name: {{ printf "client-%s" . }}
+              mountPath: {{ printf "/etc/kafka-clients/%s" . | quote }}
+              readOnly: true
+            {{- end }}
+
+      volumes:
+        - name: config
+          configMap:
+            name: kafka-config
+
+        - name: tmp
+          emptyDir: {}
+
+        - name: startup
+          configMap:
+            name: kafka-startup
+
+        - name: broker-auth
+          secret:
+            secretName: {{ .Values.auth.existingSecret | quote }}
+            defaultMode: 0440
+
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName | quote }}
+            defaultMode: 0440
+            items:
+              - key: keystore.p12
+                path: keystore.p12
+              - key: truststore.p12
+                path: truststore.p12
+
+        {{- range .Values.auth.clients }}
+        - name: {{ printf "client-%s" . }}
+          secret:
+            secretName: {{ printf "kafka-client-%s" . | quote }}
+            defaultMode: 0440
+        {{- end }}
+
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storage.storageClassName | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size | quote }}

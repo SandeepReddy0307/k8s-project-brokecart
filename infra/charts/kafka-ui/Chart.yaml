@@ -1,0 +1,10 @@
+apiVersion: v2
+name: brokecart-kafka-ui
+description: Authenticated Kafka UI for BrokeCart
+type: application
+version: 0.1.0
+
+dependencies:
+  - name: kafka-ui
+    version: "1.6.5"
+    repository: https://kafbat.github.io/helm-charts
