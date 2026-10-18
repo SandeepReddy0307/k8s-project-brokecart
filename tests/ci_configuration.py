@@ -126,6 +126,33 @@ for workflow in workflows.values():
                 subprocess.run(['bash', '-n'], input=step['run'], text=True, check=True)
 assert workflows['build-images.yaml']['jobs']['promote']['permissions'] == {'contents': 'write'}
 assert workflows['service-build.yaml']['jobs']['build']['environment'] == 'learning'
+build_job = workflows['service-build.yaml']['jobs']['build']
+assert not any('runner.' in value for value in build_job.get('env', {}).values())
+prepare_registry = next(s for s in build_job['steps'] if s.get('id') == 'registry-config')
+cleanup_registry = next(s for s in build_job['steps']
+                        if s.get('name') == 'Remove temporary registry credentials')
+assert cleanup_registry['if'] == "always() && steps.registry-config.outputs.path != ''"
+assert cleanup_registry['env']['DOCKER_CONFIG'] == "${{ steps.registry-config.outputs.path }}"
+with tempfile.TemporaryDirectory(prefix='brokecart-registry-config-') as tmp:
+    work = Path(tmp)
+    runner_temp = work / 'runner temp'
+    runner_temp.mkdir()
+    github_env, github_output = work / 'env', work / 'output'
+    runtime_env = {**os.environ, 'RUNNER_TEMP': str(runner_temp),
+                   'GITHUB_ENV': str(github_env), 'GITHUB_OUTPUT': str(github_output)}
+    subprocess.run(['bash', '-c', prepare_registry['run']], env=runtime_env, check=True)
+    config = Path(github_env.read_text().strip().split('=', 1)[1])
+    assert config.is_dir() and config.stat().st_mode & 0o777 == 0o700
+    assert github_output.read_text().strip() == 'path=' + str(config)
+    sibling = runner_temp / 'unrelated-config'
+    sibling.mkdir()
+    stub = work / 'docker'
+    stub.write_text('#!/bin/sh\nexit 0\n')
+    stub.chmod(0o700)
+    runtime_env.update({'DOCKER_CONFIG': str(config),
+                        'PATH': str(work) + os.pathsep + os.environ['PATH']})
+    subprocess.run(['bash', '-c', cleanup_registry['run']], env=runtime_env, check=True)
+    assert not config.exists() and sibling.exists()
 node_setup = next(s for s in workflows['service-build.yaml']['jobs']['build']['steps']
                   if s.get('uses', '').startswith('actions/setup-node@'))
 assert node_setup['if'] == "inputs.service == 'frontend'"

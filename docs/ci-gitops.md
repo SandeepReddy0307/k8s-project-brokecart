@@ -1,5 +1,7 @@
 # Building and deploying BrokeCart
 
+Workflow syntax and GitHub expression contexts are checked with pinned, checksum-verified actionlint before infrastructure checks. Run `python3 scripts/ci/check_workflows.py --download` locally before committing workflow changes. Registry configuration is created in a private directory beneath RUNNER_TEMP by a step and shared through GITHUB_ENV; cleanup uses that step's output so it cannot target the runner's normal Docker configuration.
+
 GitHub Actions tests, builds and publishes images. Argo CD applies Kubernetes resources from Git. These are separate responsibilities: workflows never run `helm upgrade`, `kubectl apply` or access the OpenBao root token.
 
 ## What has been prepared

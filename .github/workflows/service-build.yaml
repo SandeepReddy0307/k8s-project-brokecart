@@ -27,14 +27,19 @@ jobs:
     runs-on: [self-hosted, linux, x64, brokecart]
     environment: learning
     timeout-minutes: 45
-    env:
-      # Never store Docker Hub credentials in the runner's persistent Docker config.
-      DOCKER_CONFIG: ${{ runner.temp }}/docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.service }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
+      - name: Prepare temporary registry configuration
+        id: registry-config
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker_config_dir="$(mktemp -d "$RUNNER_TEMP/brokecart-docker.XXXXXX")"
+          printf 'DOCKER_CONFIG=%s\n' "$docker_config_dir" >> "$GITHUB_ENV"
+          printf 'path=%s\n' "$docker_config_dir" >> "$GITHUB_OUTPUT"
       - name: Test and compile selected Java module
         if: inputs.service != 'frontend'
         shell: bash
@@ -84,8 +89,10 @@ jobs:
           docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --file "$DOCKERFILE" --tag "$image" "$BUILD_CONTEXT"
           docker push "$image"
       - name: Remove temporary registry credentials
-        if: always()
+        if: always() && steps.registry-config.outputs.path != ''
         shell: bash
+        env:
+          DOCKER_CONFIG: ${{ steps.registry-config.outputs.path }}
         run: |
           docker logout >/dev/null 2>&1 || true
           python3 -c 'import os,shutil; shutil.rmtree(os.environ["DOCKER_CONFIG"], ignore_errors=True)'
