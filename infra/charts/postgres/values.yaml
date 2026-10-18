@@ -50,3 +50,6 @@ provisioning:
     - notifications
     - search
     - reporting
+
+networkPolicy:
+  enabled: true

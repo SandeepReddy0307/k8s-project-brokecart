@@ -1,0 +1,109 @@
+name: Build changed services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'libraries/**'
+      - 'frontend/**'
+      - 'pom.xml'
+      - 'mvnw*'
+      - '.mvn/**'
+      - '.dockerignore'
+      - '.github/workflows/build-images.yaml'
+      - '.github/workflows/service-build.yaml'
+      - 'scripts/ci/**'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'all or comma-separated names, for example catalog,orders,frontend'
+        required: true
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+# Serialize image promotions. Infrastructure-only commits do not start this workflow.
+concurrency:
+  group: brokecart-images-main
+  cancel-in-progress: false
+
+jobs:
+  select:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, brokecart]
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect changed services
+        id: targets
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          REQUESTED_SERVICES: ${{ inputs.services }}
+        run: |
+          set -euo pipefail
+          matrix=$(python3 scripts/ci/select_services.py --base "$BASE_SHA" --head "$HEAD_SHA" --services "$REQUESTED_SERVICES")
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+          MATRIX="$matrix" python3 -c 'import json,os; print("has_targets=" + str(bool(json.loads(os.environ["MATRIX"])["include"])).lower())' >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: select
+    if: needs.select.outputs.has_targets == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    uses: ./.github/workflows/service-build.yaml
+    with:
+      service: ${{ matrix.name }}
+      source_path: ${{ matrix.path }}
+      dockerfile: ${{ matrix.dockerfile }}
+      context: ${{ matrix.context }}
+      source_sha: ${{ github.sha }}
+    secrets: inherit
+
+  promote:
+    name: Record tested images in GitOps
+    needs: [select, build]
+    if: needs.select.outputs.has_targets == 'true'
+    runs-on: [self-hosted, linux, x64, brokecart]
+    environment: learning
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Reject stale builds and update selected image values
+        shell: bash
+        env:
+          MATRIX: ${{ needs.select.outputs.matrix }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/check_promotion.py --source "$SOURCE_SHA" --matrix "$MATRIX"
+          python3 scripts/ci/update_images.py --matrix "$MATRIX" --username "$DOCKERHUB_USERNAME" --sha "$SOURCE_SHA"
+          python3 scripts/ci/validate_infra.py --dependencies
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 -c 'import json,os,subprocess; subprocess.run(["git","add","--",*[s["values"] for s in json.loads(os.environ["MATRIX"])["include"]]],check=True)'
+          if git diff --cached --quiet; then
+            echo 'Images already recorded; no GitOps commit needed.'
+          else
+            git commit -m "chore(images): promote tested images from ${SOURCE_SHA:0:12}"
+            git push origin HEAD:main
+          fi

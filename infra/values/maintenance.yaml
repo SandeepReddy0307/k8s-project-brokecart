@@ -1,0 +1,8 @@
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-maintenance
+  tag: pending-ci
+tasks:
+  expire-reservations:
+    suspend: true
+  reconcile-payments:
+    suspend: true

@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY libraries ./libraries
 COPY services ./services
-RUN --mount=type=cache,target=/root/.m2 mvn -B package -DskipTests
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -pl services/identity-service -am package -DskipTests
 FROM eclipse-temurin:17-jre-alpine
 RUN addgroup -g 10001 app && adduser -D -u 10001 -G app app
 WORKDIR /app

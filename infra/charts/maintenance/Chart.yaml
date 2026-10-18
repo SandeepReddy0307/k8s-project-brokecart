@@ -1,0 +1,6 @@
+apiVersion: v2
+name: brokecart-maintenance
+description: Bounded reservation expiry and payment reconciliation tasks
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,4 @@
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-frontend
+  tag: pending-ci
+replicaCount: 1

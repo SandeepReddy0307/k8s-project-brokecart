@@ -1,0 +1,22 @@
+{{- if .Values.kafka.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-kafka-config" .Release.Name | quote }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  ca.crt: |
+{{ required "Missing files/openbao-ca.crt" (.Files.Get "files/openbao-ca.crt") | indent 4 }}
+  kafka.yaml: |
+    spring:
+      kafka:
+        properties:
+          security.protocol: SASL_SSL
+          sasl.mechanism: PLAIN
+          sasl.jaas.config: "${KAFKA_SASL_JAAS_CONFIG}"
+          ssl.truststore.type: PEM
+          ssl.truststore.location: /etc/kafka-client/ca.crt
+          ssl.endpoint.identification.algorithm: https
+{{- end }}

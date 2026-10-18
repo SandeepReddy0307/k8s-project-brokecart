@@ -1,0 +1,91 @@
+name: Test and publish one service
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+      source_path:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      context:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64, brokecart]
+    environment: learning
+    timeout-minutes: 45
+    env:
+      # Never store Docker Hub credentials in the runner's persistent Docker config.
+      DOCKER_CONFIG: ${{ runner.temp }}/docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Test and compile selected Java module
+        if: inputs.service != 'frontend'
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ inputs.source_path }}
+        run: |
+          set -euo pipefail
+          bash ./mvnw --batch-mode --no-transfer-progress -pl "$SOURCE_PATH" -am verify -DargLine=-XX:ActiveProcessorCount=2
+      - name: Set up Node.js for frontend
+        if: inputs.service == 'frontend'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Test and compile frontend
+        if: inputs.service == 'frontend'
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm test
+          npm run build
+      - name: Log in to Docker Hub
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$DOCKERHUB_USERNAME" && test -n "$DOCKERHUB_TOKEN"
+          mkdir -p "$DOCKER_CONFIG"
+          chmod 700 "$DOCKER_CONFIG"
+          printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+      - name: Build and push the selected image
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          SERVICE: ${{ inputs.service }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+          BUILD_CONTEXT: ${{ inputs.context }}
+        run: |
+          set -euo pipefail
+          image="docker.io/$DOCKERHUB_USERNAME/brokecart-$SERVICE:$SOURCE_SHA"
+          docker build --label "org.opencontainers.image.revision=$SOURCE_SHA" --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --file "$DOCKERFILE" --tag "$image" "$BUILD_CONTEXT"
+          docker push "$image"
+      - name: Remove temporary registry credentials
+        if: always()
+        shell: bash
+        run: |
+          docker logout >/dev/null 2>&1 || true
+          python3 -c 'import os,shutil; shutil.rmtree(os.environ["DOCKER_CONFIG"], ignore_errors=True)'

@@ -1,5 +1,30 @@
 configs:
   cm:
+    url: https://argocd.brokecart.com:8443
+    resource.customizations.health.argoproj.io_Application: |
+      local health = {status = "Progressing", message = "Waiting for child Application"}
+      if not obj.status then return health end
+      if obj.status.operationState then
+        local phase = obj.status.operationState.phase
+        if phase == "Running" or phase == "Terminating" then
+          health.message = "Child sync and provisioning hooks are running"
+          return health
+        elseif phase == "Failed" or phase == "Error" then
+          health.status = "Degraded"
+          health.message = obj.status.operationState.message or "Child sync failed"
+          return health
+        end
+      end
+      if not obj.status.sync or obj.status.sync.status ~= "Synced" then
+        health.message = "Child Application is not synced"
+        return health
+      end
+      if obj.status.health then
+        health.status = obj.status.health.status
+        health.message = obj.status.health.message or ""
+      end
+      return health
+
     resource.customizations.health.external-secrets.io_SecretStore: |
       local health = {
         status = "Progressing",
@@ -74,3 +99,33 @@ configs:
       end
 
       return health
+
+
+  params:
+    server.insecure: true
+
+global:
+  domain: argocd.brokecart.com
+
+controller:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+
+repoServer:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+
+server:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+
+redis:
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+dex:
+  enabled: false

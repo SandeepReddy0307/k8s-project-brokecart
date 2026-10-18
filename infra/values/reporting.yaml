@@ -1,0 +1,61 @@
+# Per-service settings; GitHub Actions replaces the image repository and tag.
+openbao:
+  role: reporting-secrets
+  serviceAccount: reporting-secrets
+  credentialPath: brokecart/reporting/database
+deployment:
+  enabled: true
+  replicas: 1
+monitoring:
+  enabled: true
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-reporting
+  tag: pending-ci
+database:
+  secretName: reporting-database-credentials
+security:
+  enabled: true
+  secretName: reporting-application-security
+  identitySigningKey: false
+  openbao:
+    role: reporting-application-secrets
+    serviceAccount: reporting-application-secrets
+kafka:
+  enabled: true
+  secretName: reporting-kafka-credentials
+  openbao:
+    role: reporting-kafka-secrets
+    serviceAccount: reporting-kafka-secrets
+    credentialPath: brokecart/reporting/kafka
+config:
+  PORT: '8080'
+  PUBLIC_ORIGIN: https://brokecart.com:8443
+  REDIS_ENABLED: 'false'
+  TRACE_SAMPLE_RATE: '1.0'
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+  KAFKA_BOOTSTRAP_SERVERS: kafka.brokecart-kafka.svc.cluster.local:9092
+  CATALOG_URL: http://catalog.brokecart-catalog.svc.cluster.local
+  PRICING_URL: http://pricing.brokecart-pricing.svc.cluster.local
+  IDENTITY_URL: http://identity.brokecart-identity.svc.cluster.local
+  CART_URL: http://cart.brokecart-cart.svc.cluster.local
+  CHECKOUT_URL: http://checkout.brokecart-checkout.svc.cluster.local
+  ORDERS_URL: http://orders.brokecart-orders.svc.cluster.local
+  INVENTORY_URL: http://inventory.brokecart-inventory.svc.cluster.local
+  PAYMENTS_URL: http://payments.brokecart-payments.svc.cluster.local
+  PAYMENT_PROVIDER_URL: http://payment-provider.brokecart-payment-provider.svc.cluster.local
+  SHIPPING_URL: http://shipping.brokecart-shipping.svc.cluster.local
+  RETURNS_URL: http://returns.brokecart-returns.svc.cluster.local
+  NOTIFICATIONS_URL: http://notifications.brokecart-notifications.svc.cluster.local
+  SEARCH_URL: http://search.brokecart-search.svc.cluster.local
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+pdb:
+  enabled: true
+  maxUnavailable: 1
+route:
+  enabled: true
+  paths:
+  - /api/operations/reports

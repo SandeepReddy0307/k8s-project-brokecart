@@ -1,0 +1,67 @@
+{{- range $name, $task := .Values.tasks }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: maintenance-{{ $name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  schedule: {{ $task.schedule | quote }}
+  timeZone: Etc/UTC
+  suspend: {{ $task.suspend }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: maintenance
+            app.kubernetes.io/instance: {{ $.Release.Name }}
+            brokecart.com/task: {{ $name }}
+        spec:
+          serviceAccountName: maintenance
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: maintenance
+              image: {{ printf "%s:%s" $.Values.image.repository $.Values.image.tag | quote }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: [ALL]}
+              env:
+                - name: TASK
+                  value: {{ $name | quote }}
+                - name: JAVA_TOOL_OPTIONS
+                  value: "-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=1 -XX:+ExitOnOutOfMemoryError"
+                - name: INTERNAL_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secretName }}
+                      key: internal-token
+                {{- range $key, $value := $.Values.config }}
+                - name: {{ $key }}
+                  value: {{ $value | quote }}
+                {{- end }}
+              resources: {{ toYaml $.Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {sizeLimit: 32Mi}
+{{- end }}

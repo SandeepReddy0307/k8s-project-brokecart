@@ -1,0 +1,28 @@
+replicaCount: 1
+networkPolicy:
+  enabled: true
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-frontend
+  tag: pending-ci
+  pullPolicy: IfNotPresent
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+route:
+  enabled: true
+  hostname: brokecart.com
+  gateway:
+    name: brokecart-gateway
+    namespace: kong
+    sectionName: https
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+pdb:
+  enabled: false
+  minAvailable: 1

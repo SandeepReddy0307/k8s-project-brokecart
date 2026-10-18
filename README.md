@@ -2,7 +2,7 @@
 
 **Full cart, empty wallet.** A runnable shopping application for learning distributed commerce on a local kind cluster.
 
-The application source, tests, Maven builds, and Dockerfiles are supplied here. You own kind, Kubernetes resources, Gateway API, Helm, GitHub Actions, Docker Hub publication, Argo CD, and the observability platform. This repository does not create that infrastructure.
+The repository contains the application source, Maven builds, Dockerfiles, Helm charts, selective GitHub Actions workflows and Argo CD definitions for the local kind learning environment. Follow the [deployment runbook](docs/deployment-runbook.md) to review and activate them using your GitHub Environment and local self-hosted runner. Definitions in Git do not deploy the stack until the delivery flow is activated.
 
 ## Applications
 

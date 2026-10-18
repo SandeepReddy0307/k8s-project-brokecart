@@ -1,0 +1,86 @@
+{{- if and .Values.deployment.enabled .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range .Values.networkPolicy.applicationNamespaces }}
+                  - {{ . | quote }}
+                  {{- end }}
+                  - brokecart-maintenance
+                  - kong
+                  - observability
+      ports:
+        - {protocol: TCP, port: 8080}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range .Values.networkPolicy.applicationNamespaces }}
+                  - {{ . | quote }}
+                  {{- end }}
+      ports:
+        - {protocol: TCP, port: 8080}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: brokecart-postgres
+      ports:
+        - {protocol: TCP, port: 5432}
+    {{- if .Values.kafka.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: brokecart-kafka
+      ports:
+        - {protocol: TCP, port: 9092}
+    {{- end }}
+    {{- if .Values.redis.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: brokecart-redis
+      ports:
+        - {protocol: TCP, port: 6379}
+    {{- end }}
+    {{- if .Values.elasticsearch.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: brokecart-elasticsearch
+      ports:
+        - {protocol: TCP, port: 9200}
+    {{- end }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - {protocol: TCP, port: 4318}
+{{- end }}

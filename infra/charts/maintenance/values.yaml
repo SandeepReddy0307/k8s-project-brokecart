@@ -1,0 +1,26 @@
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-maintenance
+  tag: pending-ci
+  pullPolicy: IfNotPresent
+networkPolicy:
+  enabled: true
+secretName: maintenance-application-security
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: maintenance-application-secrets
+  serviceAccount: maintenance-application-secrets
+  credentialPath: brokecart/shared/internal
+tasks:
+  expire-reservations:
+    schedule: "*/5 * * * *"
+    suspend: true
+  reconcile-payments:
+    schedule: "*/5 * * * *"
+    suspend: true
+config:
+  INVENTORY_URL: http://inventory.brokecart-inventory.svc.cluster.local
+  PAYMENTS_URL: http://payments.brokecart-payments.svc.cluster.local
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {memory: 192Mi}

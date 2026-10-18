@@ -1,0 +1,5 @@
+prometheusRelease: monitoring
+dashboards:
+  enabled: true
+alerts:
+  enabled: true

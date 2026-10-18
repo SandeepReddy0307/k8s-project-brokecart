@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: {{ printf "%s-postgres-ca" .Release.Name | quote }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 data:
   ca.crt: |
 {{ required "Missing files/openbao-ca.crt" (.Files.Get "files/openbao-ca.crt") | indent 4 }}

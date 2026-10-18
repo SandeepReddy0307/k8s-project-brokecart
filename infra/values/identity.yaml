@@ -1,0 +1,56 @@
+# Per-service settings; GitHub Actions replaces the image repository and tag.
+openbao:
+  role: identity-secrets
+  serviceAccount: identity-secrets
+  credentialPath: brokecart/identity/database
+deployment:
+  enabled: true
+  replicas: 1
+monitoring:
+  enabled: true
+image:
+  repository: docker.io/replace-with-your-dockerhub-user/brokecart-identity
+  tag: pending-ci
+database:
+  secretName: identity-database-credentials
+security:
+  enabled: true
+  secretName: identity-application-security
+  identitySigningKey: true
+  openbao:
+    role: identity-application-secrets
+    serviceAccount: identity-application-secrets
+kafka:
+  enabled: false
+config:
+  PORT: '8080'
+  PUBLIC_ORIGIN: https://brokecart.com:8443
+  REDIS_ENABLED: 'false'
+  TRACE_SAMPLE_RATE: '1.0'
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+  CATALOG_URL: http://catalog.brokecart-catalog.svc.cluster.local
+  PRICING_URL: http://pricing.brokecart-pricing.svc.cluster.local
+  CART_URL: http://cart.brokecart-cart.svc.cluster.local
+  CHECKOUT_URL: http://checkout.brokecart-checkout.svc.cluster.local
+  ORDERS_URL: http://orders.brokecart-orders.svc.cluster.local
+  INVENTORY_URL: http://inventory.brokecart-inventory.svc.cluster.local
+  PAYMENTS_URL: http://payments.brokecart-payments.svc.cluster.local
+  PAYMENT_PROVIDER_URL: http://payment-provider.brokecart-payment-provider.svc.cluster.local
+  SHIPPING_URL: http://shipping.brokecart-shipping.svc.cluster.local
+  RETURNS_URL: http://returns.brokecart-returns.svc.cluster.local
+  NOTIFICATIONS_URL: http://notifications.brokecart-notifications.svc.cluster.local
+  SEARCH_URL: http://search.brokecart-search.svc.cluster.local
+  REPORTING_URL: http://reporting.brokecart-reporting.svc.cluster.local
+  COOKIE_SECURE: 'true'
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+pdb:
+  enabled: true
+  maxUnavailable: 1
+route:
+  enabled: true
+  paths:
+  - /api/identity

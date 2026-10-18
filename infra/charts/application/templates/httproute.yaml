@@ -1,0 +1,31 @@
+{{- if and .Values.deployment.enabled .Values.route.enabled }}
+{{- if not .Values.route.paths }}
+{{- fail "Public application routes require an explicit non-empty route.paths list" }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  parentRefs:
+    - name: {{ .Values.route.gateway.name }}
+      namespace: {{ .Values.route.gateway.namespace }}
+      sectionName: {{ .Values.route.gateway.sectionName }}
+  hostnames: [{{ .Values.route.hostname | quote }}]
+  rules:
+    - matches:
+        {{- range .Values.route.paths }}
+        {{- if not (hasPrefix "/api/" .) }}
+        {{- fail "Public application routes must start with /api/" }}
+        {{- end }}
+        - path:
+            type: PathPrefix
+            value: {{ . | quote }}
+        {{- end }}
+      backendRefs:
+        - name: {{ .Release.Name }}
+          port: {{ .Values.service.port }}
+{{- end }}

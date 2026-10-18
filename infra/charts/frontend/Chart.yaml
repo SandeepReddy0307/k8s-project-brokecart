@@ -1,0 +1,6 @@
+apiVersion: v2
+name: brokecart-frontend
+description: BrokeCart static storefront and public HTTPS route
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

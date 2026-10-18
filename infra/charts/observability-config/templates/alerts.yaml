@@ -1,0 +1,53 @@
+{{- if .Values.alerts.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: brokecart-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: {{ .Values.prometheusRelease | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  groups:
+    - name: brokecart.http
+      rules:
+        - alert: BrokeCartHTTP5xx
+          expr: >-
+            (sum by (namespace, application) (rate(http_server_requests_seconds_count{namespace=~"brokecart-.*",uri!~"/actuator.*",status=~"5.."}[5m]))
+            / sum by (namespace, application) (rate(http_server_requests_seconds_count{namespace=~"brokecart-.*",uri!~"/actuator.*"}[5m])) > 0.05)
+            and on (namespace, application)
+            (sum by (namespace, application) (rate(http_server_requests_seconds_count{namespace=~"brokecart-.*",uri!~"/actuator.*"}[5m])) > 0.1)
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: BrokeCart backend HTTP error ratio exceeds 5 percent
+            description: Sustained 5xx errors with at least 0.1 business requests per second. Inspect the BrokeCart dashboard and logs.
+        - alert: BrokeCartHTTPLatency
+          expr: >-
+            (sum by (namespace, application) (rate(http_server_requests_seconds_sum{namespace=~"brokecart-.*",uri!~"/actuator.*"}[5m]))
+            / sum by (namespace, application) (rate(http_server_requests_seconds_count{namespace=~"brokecart-.*",uri!~"/actuator.*"}[5m])) > 1)
+            and on (namespace, application)
+            (sum by (namespace, application) (rate(http_server_requests_seconds_count{namespace=~"brokecart-.*",uri!~"/actuator.*"}[5m])) > 0.1)
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: BrokeCart backend mean HTTP latency exceeds one second
+            description: This is mean latency over five minutes, not a percentile. Investigate dependencies and request traces.
+    - name: brokecart.workloads
+      rules:
+        - alert: BrokeCartDeploymentUnavailable
+          expr: kube_deployment_status_replicas_available{namespace=~"brokecart-.*"} == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: BrokeCart Deployment has no available replicas
+            description: Check Pod events, images, Secrets and readiness probes.
+        - alert: BrokeCartPodRestarts
+          expr: sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~"brokecart-.*"}[15m])) > 3
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: BrokeCart container restarted repeatedly
+            description: Inspect termination reason, previous logs, resources and dependency availability.
+{{- end }}

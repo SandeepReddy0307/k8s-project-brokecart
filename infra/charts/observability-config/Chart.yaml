@@ -1,0 +1,5 @@
+apiVersion: v2
+name: brokecart-observability-config
+description: BrokeCart Grafana dashboards and Prometheus alert rules
+type: application
+version: 0.1.0

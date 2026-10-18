@@ -1,0 +1,40 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: '0'
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - brokecart-catalog
+          - brokecart-pricing
+          - brokecart-identity
+          - brokecart-cart
+          - brokecart-checkout
+          - brokecart-orders
+          - brokecart-inventory
+          - brokecart-payments
+          - brokecart-payment-provider
+          - brokecart-shipping
+          - brokecart-returns
+          - brokecart-notifications
+          - brokecart-search
+          - brokecart-reporting
+          - brokecart-postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+{{- end }}

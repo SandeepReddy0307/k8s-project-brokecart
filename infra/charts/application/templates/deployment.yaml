@@ -1,0 +1,214 @@
+{{- if .Values.deployment.enabled }}
+{{- if not .Values.security.enabled }}
+{{- fail "HTTP backend deployment requires security.enabled=true" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.deployment.replicas }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+  progressDeadlineSeconds: 900
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum | quote }}
+        checksum/database-ca: {{ include (print $.Template.BasePath "/database-ca.yaml") . | sha256sum | quote }}
+        {{- if .Values.kafka.enabled }}
+        checksum/kafka-config: {{ include (print $.Template.BasePath "/kafka-configmap.yaml") . | sha256sum | quote }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if .Values.elasticsearch.enabled }}
+      initContainers:
+        - name: application-trust
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              cp "$JAVA_HOME/lib/security/cacerts" /trust/truststore.p12
+              keytool -importcert -noprompt -alias brokecart-local-ca \
+                -file /etc/postgres-ca/ca.crt -keystore /trust/truststore.p12 \
+                -storepass changeit
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            - {name: application-trust, mountPath: /trust}
+            - {name: postgres-ca, mountPath: /etc/postgres-ca, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      {{- end }}
+      containers:
+        - name: application
+          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-config" .Release.Name | quote }}
+          env:
+            # Kubernetes expands DB_NAME in the later DB_URL value.
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName | quote }}
+                  key: database
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName | quote }}
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName | quote }}
+                  key: password
+            - name: DB_URL
+              value: {{ printf "jdbc:postgresql://%s:%v/$(DB_NAME)?sslmode=verify-full&sslrootcert=/etc/postgres-ca/ca.crt" .Values.database.host .Values.database.port | quote }}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ printf "%s%s" .Values.javaToolOptions (ternary " -Djavax.net.ssl.trustStore=/etc/application-trust/truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit" "" .Values.elasticsearch.enabled) | quote }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.secretName | quote }}
+                  key: password
+            - name: REDIS_URL
+              value: {{ printf "redis://:$(REDIS_PASSWORD)@%s:%v" .Values.redis.host .Values.redis.port | quote }}
+            {{- end }}
+            {{- if .Values.elasticsearch.enabled }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.elasticsearch.secretName | quote }}
+                  key: username
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.elasticsearch.secretName | quote }}
+                  key: password
+            {{- end }}
+            - name: KAFKA_ENABLED
+              value: {{ .Values.kafka.enabled | quote }}
+            - name: INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.security.secretName | quote }}
+                  key: internal-token
+            - name: JWT_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.security.secretName | quote }}
+                  key: jwt-public-key
+            {{- if .Values.security.identitySigningKey }}
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.security.secretName | quote }}
+                  key: jwt-private-key
+            {{- end }}
+            {{- if .Values.kafka.enabled }}
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: file:/etc/kafka-client/kafka.yaml
+            - name: KAFKA_SASL_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.secretName | quote }}
+                  key: sasl-jaas-config
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: postgres-ca
+              mountPath: /etc/postgres-ca
+              readOnly: true
+            {{- if .Values.elasticsearch.enabled }}
+            - name: application-trust
+              mountPath: /etc/application-trust
+              readOnly: true
+            {{- end }}
+            {{- if .Values.kafka.enabled }}
+            - name: kafka-config
+              mountPath: /etc/kafka-client
+              readOnly: true
+            {{- end }}
+      volumes:
+        {{- if .Values.elasticsearch.enabled }}
+        - name: application-trust
+          emptyDir: {}
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+        - name: postgres-ca
+          configMap:
+            name: {{ printf "%s-postgres-ca" .Release.Name | quote }}
+        {{- if .Values.kafka.enabled }}
+        - name: kafka-config
+          configMap:
+            name: {{ printf "%s-kafka-config" .Release.Name | quote }}
+        {{- end }}
+{{- end }}

@@ -31,3 +31,7 @@ resources:
     memory: 768Mi
   limits:
     memory: 1536Mi
+
+
+networkPolicy:
+  enabled: true

@@ -1,0 +1,42 @@
+name: Validate infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'tests/*configuration.py'
+      - 'tests/ci_configuration.py'
+      - 'scripts/ci/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brokecart-infrastructure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    # Trusted main only: never run arbitrary fork PR code on a local runner.
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, brokecart]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Render all charts and check configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/validate_infra.py --dependencies
+          python3 tests/ci_configuration.py
+          for check in tests/*configuration.py; do
+            if [ "$check" != tests/ci_configuration.py ]; then
+              python3 "$check"
+            fi
+          done
+          git diff --check

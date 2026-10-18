@@ -1,0 +1,14 @@
+{{- if .Values.dashboards.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: brokecart-dashboards
+  namespace: {{ .Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  brokecart-overview.json: |
+{{ .Files.Get "files/brokecart-overview.json" | indent 4 }}
+{{- end }}

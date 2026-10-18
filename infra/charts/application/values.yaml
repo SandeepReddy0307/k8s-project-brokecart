@@ -1,5 +1,105 @@
 database:
   secretName: database-credentials
+  host: postgres.brokecart-postgres.svc.cluster.local
+  port: 5432
+
+deployment:
+  enabled: false
+  replicas: 1
+  revisionHistoryLimit: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+vpa:
+  enabled: false
+  updateMode: "Off"
+
+route:
+  enabled: false
+  hostname: brokecart.com
+  gateway:
+    name: brokecart-gateway
+    namespace: kong
+    sectionName: https
+  paths: []
+
+networkPolicy:
+  enabled: true
+  applicationNamespaces:
+    - brokecart-catalog
+    - brokecart-pricing
+    - brokecart-identity
+    - brokecart-cart
+    - brokecart-checkout
+    - brokecart-orders
+    - brokecart-inventory
+    - brokecart-payments
+    - brokecart-payment-provider
+    - brokecart-shipping
+    - brokecart-returns
+    - brokecart-notifications
+    - brokecart-search
+    - brokecart-reporting
+
+redis:
+  enabled: false
+  secretName: ""
+  host: redis.brokecart-redis.svc.cluster.local
+  port: 6379
+  openbao:
+    role: ""
+    serviceAccount: ""
+    credentialPath: ""
+
+elasticsearch:
+  enabled: false
+  secretName: ""
+  openbao:
+    role: ""
+    serviceAccount: ""
+    credentialPath: ""
+
+image:
+  repository: ""
+  tag: pending-ci
+  pullPolicy: IfNotPresent
+
+service:
+  port: 80
+
+monitoring:
+  enabled: false
+  prometheusRelease: monitoring
+  interval: 30s
+  scrapeTimeout: 10s
+
+javaToolOptions: "-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+security:
+  enabled: false
+  secretName: ""
+  identitySigningKey: false
+  openbao:
+    role: ""
+    serviceAccount: ""
+    internalTokenPath: brokecart/shared/internal
+    jwtPublicPath: brokecart/shared/jwt
+    jwtPrivatePath: brokecart/identity/jwt
 
 openbao:
   server: https://openbao.openbao.svc:8200
@@ -7,3 +107,11 @@ openbao:
   role: ""
   serviceAccount: ""
   credentialPath: ""
+
+kafka:
+  enabled: false
+  secretName: ""
+  openbao:
+    role: ""
+    serviceAccount: ""
+    credentialPath: ""

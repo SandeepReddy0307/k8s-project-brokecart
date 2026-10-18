@@ -4,6 +4,10 @@ These files prepare the Kafka portion of BrokeCart for the later GitHub Actions/
 
 ## What runs where
 
+Catalog's application-chart integration is now being prepared. With `kafka.enabled=true`, it renders ServiceAccount `catalog-kafka-secrets`, SecretStore `catalog-kafka-openbao`, ExternalSecret `catalog-kafka-credentials`, and ConfigMap `catalog-kafka-config` in `brokecart-catalog`. The dedicated OpenBao role reads only `brokecart/catalog/kafka`.
+
+ESO formats the login into the generated Secret's `sasl-jaas-config` key. The public ConfigMap contains the CA and Spring Kafka settings for SASL_SSL/PLAIN, PEM trust and hostname verification. The Deployment mounts this ConfigMap at `/etc/kafka-client`, populates `KAFKA_SASL_JAAS_CONFIG` from the Secret and sets `SPRING_CONFIG_ADDITIONAL_LOCATION=file:/etc/kafka-client/kafka.yaml` when Kafka is enabled. Rendering is checked; deployed application connectivity remains to be tested. Credential changes require an application rollout because these environment variables are read at startup.
+
 | Component | Namespace | Kubernetes resources |
 |---|---|---|
 | Kafka | `brokecart-kafka` | Three-replica StatefulSet, per-Pod PVCs, bootstrap and headless Services, ServiceAccounts, SecretStore, ExternalSecrets, Certificate, ConfigMaps, provisioning Job, PDB |

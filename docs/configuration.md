@@ -1,5 +1,9 @@
 # Configuration and API contracts
 
+For OpenBao bootstrap and Helm delivery of JWT keys and the internal HTTP token, see [application security](application-security.md).
+
+For catalog's Deployment, Service, Secret references and TLS mounts, see [application Helm chart](application-chart.md).
+
 ## Profiles
 
 Normal mode requires PostgreSQL and valid RSA keys. Use separate databases and restricted database users for each HTTP service. The explicit `local` profile uses H2 and development signing credentials and must never be used for a shared/public deployment.
