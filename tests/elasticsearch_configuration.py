@@ -24,6 +24,12 @@ for container in pod["containers"] + pod["initContainers"]:
     assert {m["name"] for m in container["volumeMounts"]} <= set(volumes) | {"data"}
 assert pod["containers"][0]["command"] == ["/bin/bash", "/scripts/start.sh"]
 scripts = get("ConfigMap", "elasticsearch-scripts")["data"]
+# A Pod must check its own listener: the Service excludes unready Pods.
+# Keep the certificate's DNS name for hostname verification while using loopback.
+assert "--resolve elasticsearch:9200:127.0.0.1" in scripts["check-ready.sh"]
+assert "https://elasticsearch:9200/_cluster/health" in scripts["check-ready.sh"]
+assert "--cacert /usr/share/elasticsearch/config/tls/ca.crt" in scripts["check-ready.sh"]
+assert "--insecure" not in scripts["check-ready.sh"]
 for name, script in scripts.items():
     if name.endswith(".sh"):
         subprocess.run(["bash" if name == "start.sh" else "sh", "-n"],

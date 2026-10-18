@@ -124,4 +124,4 @@ kubectl --context kind-brokecart -n brokecart-elasticsearch get pods,pvc,certifi
 kubectl --context kind-brokecart -n brokecart-elasticsearch logs elasticsearch-0
 ```
 
-A successful Argo sync includes the provisioning hook's completion. If a hook fails, inspect its Job/Pod logs before retrying. Startup/readiness uses an authenticated, CA-verified cluster-health request; liveness checks the TCP listener. Secret rotation, backups/snapshots, Elasticsearch metrics export and cluster-wide network policies remain later work.
+A successful Argo sync includes the provisioning hook's completion. If a hook fails, inspect its Job/Pod logs before retrying. Startup/readiness uses an authenticated, CA-verified cluster-health request directed to loopback with curl's `--resolve`, retaining the certificate hostname `elasticsearch`. It must not depend on the Service, which excludes unready Pods. Liveness checks the TCP listener. Secret rotation, backups/snapshots, Elasticsearch metrics export and cluster-wide network policies remain later work.
