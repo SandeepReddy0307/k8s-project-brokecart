@@ -1,0 +1,40 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: brokecart-bootstrap
+  namespace: cert-manager
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: brokecart-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: BrokeCart Local Root CA
+  subject:
+    organizations:
+      - BrokeCart Learning
+  secretName: brokecart-root-ca
+  duration: 87600h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 3072
+    rotationPolicy: Never
+  usages:
+    - cert sign
+    - crl sign
+  issuerRef:
+    name: brokecart-bootstrap
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: brokecart-local-ca
+spec:
+  ca:
+    secretName: brokecart-root-ca

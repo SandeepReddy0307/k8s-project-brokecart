@@ -1,0 +1,104 @@
+global:
+  tlsDisable: false
+
+injector:
+  enabled: false
+
+server:
+  dev:
+    enabled: false
+
+  standalone:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+  dataStorage:
+    enabled: true
+    size: 2Gi
+    storageClass: standard
+
+  extraEnvironmentVars:
+    BAO_CACERT: /openbao/tls/ca.crt
+
+  volumes:
+    - name: openbao-tls
+      secret:
+        secretName: openbao-server-tls
+
+  volumeMounts:
+    - name: openbao-tls
+      mountPath: /openbao/tls
+      readOnly: true
+
+  ha:
+    enabled: true
+    replicas: 1
+    apiAddr: https://openbao.openbao.svc:8200
+
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+        disable_mlock = true
+
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/openbao/tls/tls.crt"
+          tls_key_file = "/openbao/tls/tls.key"
+        }
+
+        storage "raft" {
+          path = "/openbao/data"
+        }
+
+        service_registration "kubernetes" {}
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
+  externalPort: 8200
+  targetPort: 8200
+  annotations:
+    konghq.com/protocol: "https"
+    konghq.com/host-header: "openbao.openbao.svc"
+    konghq.com/tls-verify: "true"
+    konghq.com/tls-verify-depth: "2"
+    konghq.com/ca-certificates-configmaps: "brokecart-upstream-ca"
+
+extraObjects:
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: openbao-server
+      namespace: openbao
+    spec:
+      secretName: openbao-server-tls
+      duration: 2160h
+      renewBefore: 360h
+      dnsNames:
+        - openbao
+        - openbao.openbao.svc
+        - openbao.openbao.svc.cluster.local
+        - openbao-0.openbao-internal.openbao.svc
+        - openbao-0.openbao-internal.openbao.svc.cluster.local
+      ipAddresses:
+        - 127.0.0.1
+      privateKey:
+        algorithm: RSA
+        size: 2048
+        rotationPolicy: Always
+      usages:
+        - digital signature
+        - key encipherment
+        - server auth
+      issuerRef:
+        name: brokecart-local-ca
+        kind: ClusterIssuer

@@ -1,0 +1,2 @@
+spring.config.import: classpath:brokecart-local.yaml
+search.backend: ${SEARCH_BACKEND:database}

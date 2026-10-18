@@ -1,0 +1,76 @@
+mode: deployment
+replicaCount: 1
+fullnameOverride: otel-collector
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.162.0"
+
+command:
+  name: otelcol-contrib
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_mib: 192
+      spike_limit_mib: 48
+    batch:
+      timeout: 5s
+      send_batch_size: 512
+
+  exporters:
+    debug: null
+    otlp_grpc/tempo:
+      endpoint: tempo.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+      sending_queue:
+        enabled: true
+        queue_size: 512
+      retry_on_failure:
+        enabled: true
+        initial_interval: 1s
+        max_interval: 30s
+        max_elapsed_time: 0s
+
+  service:
+    pipelines:
+      logs: null
+      metrics: null
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlp_grpc/tempo

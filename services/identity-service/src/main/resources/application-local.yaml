@@ -1,0 +1,2 @@
+spring.config.import: classpath:brokecart-local.yaml
+app.cookie-secure: false

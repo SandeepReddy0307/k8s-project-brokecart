@@ -1,0 +1,4 @@
+replicas: 1
+
+args:
+  - --kubelet-insecure-tls

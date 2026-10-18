@@ -1,0 +1,29 @@
+image:
+  repository: postgres
+  tag: "16.15-alpine3.23"
+  pullPolicy: IfNotPresent
+
+auth:
+  existingSecret: postgres-admin
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: postgres-secrets
+  serviceAccount: postgres-secrets
+  credentialPath: brokecart/postgres/admin
+
+storage:
+  storageClassName: standard
+  size: 5Gi
+
+tls:
+  secretName: postgres-tls
+  clusterIssuer: brokecart-local-ca
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

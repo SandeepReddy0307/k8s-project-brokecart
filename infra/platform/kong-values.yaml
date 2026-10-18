@@ -1,0 +1,26 @@
+controller:
+  ingressController:
+    image:
+      tag: "3.5"
+
+gateway:
+  replicaCount: 1
+
+  env:
+    database: "off"
+    router_flavor: expressions
+
+  proxy:
+    type: NodePort
+
+    http:
+      enabled: true
+      servicePort: 80
+      containerPort: 8000
+      nodePort: 30080
+
+    tls:
+      enabled: true
+      servicePort: 443
+      containerPort: 8443
+      nodePort: 30443

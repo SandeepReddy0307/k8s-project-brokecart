@@ -1,0 +1,16 @@
+# Explicit development defaults. Never select this profile in a deployment.
+spring:
+  datasource:
+    url: jdbc:h2:mem:${spring.application.name};MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+app:
+  internal-token: brokecart-local-internal-token-only-for-development
+  public-origin: ${PUBLIC_ORIGIN:http://localhost:5173}
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
+  redis:
+    enabled: ${REDIS_ENABLED:false}
+management:
+  tracing:
+    enabled: false

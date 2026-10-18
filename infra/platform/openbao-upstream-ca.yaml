@@ -1,0 +1,38 @@
+apiVersion: v1
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIETjCCAragAwIBAgIUJ06plmXonyHBZGskkPS60sQR4YEwDQYJKoZIhvcNAQEM
+    BQAwPzEbMBkGA1UEChMSQnJva2VDYXJ0IExlYXJuaW5nMSAwHgYDVQQDExdCcm9r
+    ZUNhcnQgTG9jYWwgUm9vdCBDQTAeFw0yNjEwMTYxNjAyNTVaFw0zNjEwMTMxNjAy
+    NTVaMD8xGzAZBgNVBAoTEkJyb2tlQ2FydCBMZWFybmluZzEgMB4GA1UEAxMXQnJv
+    a2VDYXJ0IExvY2FsIFJvb3QgQ0EwggGiMA0GCSqGSIb3DQEBAQUAA4IBjwAwggGK
+    AoIBgQC/k1bkpdrDX0OVkZKAPbjecYd+BslBDTySis0WEJisGpAx5/qpcowCLnYt
+    oLvv9C2soMW1VCqFozaYu1/gc7bHDzqWNEQL7cqNT3i6CAUQ+B4qcEA/dheHev60
+    s0g5XYc7lAgLPocIY3A1qqW1UJ7BN2cBIDBqxKMSYhVqNPy0a7b+lPcX+oULyO2R
+    cCn9dr2N5TKRhFAVzw1O3AOYHJmYNS/sNZP5ix8YafRIlTl3hay7/FPwkpOalfAR
+    jiG9bORFAK5Ji0y8ZPvWyOe4f+dmL4HwtOFAaiX/CqKr8et57rZKlrG+7VEAgFyQ
+    gn4QlKtfwqNJQ01GW9JI1wnfrt1RwI534b15CpFmO8v2Bd4Mnd8joox17ZvfCI9X
+    AdeAMZzGVmHNfs5CwU/fgxAsFRNSn3CScCoGNNYJ+BUEHzbcq5RvjBEm93DaTUDt
+    KhFWYE/aNnr4fk04kOTvVEt/wjZBbcHQxU20L+Jow3r6HkobpzLU8+eYE7CkRSYN
+    QVQivDUCAwEAAaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+    HQYDVR0OBBYEFAnZFUT/23Obc6s/IUE5UQVv571kMA0GCSqGSIb3DQEBDAUAA4IB
+    gQAN68ISj7Wl/vvKf6O2ik3jDu7COZ7rSowvCin/L9NuMeBLLMbDLB4ePkJ5Fp1L
+    zj+1oPGGyb9h2BxbhXq44uPebbRS6iBuB2nraQ8WP+F+a9jerlGfjHvdh7/3Ygws
+    XV8AW4K7roB6h4yUWJgMfjGnGhVc0vhDrgLDY0F8frdj50DBBEuL0tRKR2VY6N5S
+    vjp5NyWXX06jeudEAwktATugB/72+R3Oq9Qb37AgdxuW5Wk7GiDg0E8sMmWNXoEo
+    uwmFiLmBxfnTKvdL4fccZNzVu82g436A/ado26dFnb8Dsr+y7h5z5jg4fejjQBWd
+    a+jVo5MZIKcVMqiGj0EiTKh0dlF/ZCo19ZS+UxUrDv5LGJUzpovhs/CgMr/ZQwxW
+    WpTlcncl2LVHqhS0ZWZlZb4HZ878t2wloUTPS3dW7yRk1i7UbsNymNTFJ/+OgGxr
+    J5lzxTMBiTQgY1PzTtCzAJl3KThBguCdArxVIUiKuaVVf9sdHWZaejPp6QD5P7+s
+    Ep0=
+    -----END CERTIFICATE-----
+  id: 15a9d445-fcf9-47ee-884c-b5f9dd219d4e
+kind: ConfigMap
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    konghq.com/ca-cert: "true"
+  name: brokecart-upstream-ca
+  namespace: openbao

@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: reporting-service
+  config:
+    import: classpath:brokecart-common.yaml
+server:
+  port: ${PORT:8094}
+app.kafka.consumer: true
+app.kafka.topics: orders.events
+peers:
+  identity: ${IDENTITY_URL:http://127.0.0.1:8083}
+  cart: ${CART_URL:http://127.0.0.1:8084}
+  checkout: ${CHECKOUT_URL:http://127.0.0.1:8085}
+  orders: ${ORDERS_URL:http://127.0.0.1:8086}
+  inventory: ${INVENTORY_URL:http://127.0.0.1:8087}
+  payments: ${PAYMENTS_URL:http://127.0.0.1:8088}
+  payment-provider: ${PAYMENT_PROVIDER_URL:http://127.0.0.1:8089}
+  shipping: ${SHIPPING_URL:http://127.0.0.1:8090}
+  returns: ${RETURNS_URL:http://127.0.0.1:8091}
+  notifications: ${NOTIFICATIONS_URL:http://127.0.0.1:8092}
+  search: ${SEARCH_URL:http://127.0.0.1:8093}
+  catalog: ${CATALOG_URL:http://127.0.0.1:8081}
+  pricing: ${PRICING_URL:http://127.0.0.1:8082}

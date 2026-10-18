@@ -1,0 +1,9 @@
+database:
+  secretName: database-credentials
+
+openbao:
+  server: https://openbao.openbao.svc:8200
+  mount: secret
+  role: ""
+  serviceAccount: ""
+  credentialPath: ""

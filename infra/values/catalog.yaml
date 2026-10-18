@@ -1,0 +1,7 @@
+openbao:
+  role: catalog-secrets
+  serviceAccount: catalog-secrets
+  credentialPath: brokecart/catalog/database
+
+database:
+  secretName: catalog-database-credentials

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: brokecart-application
+description: Reusable chart for BrokeCart services
+type: application
+version: 0.1.0

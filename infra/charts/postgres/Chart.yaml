@@ -1,0 +1,6 @@
+apiVersion: v2
+name: brokecart-postgres
+description: PostgreSQL infrastructure for BrokeCart
+type: application
+version: 0.1.0
+appVersion: "16"

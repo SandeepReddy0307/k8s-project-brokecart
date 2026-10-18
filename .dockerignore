@@ -1,0 +1,12 @@
+**/target
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+.git
+.env
+**/.env
+*.log
+frontend
+docs
+tests

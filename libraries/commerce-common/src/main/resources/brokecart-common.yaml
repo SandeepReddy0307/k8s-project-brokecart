@@ -1,0 +1,76 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+  mvc:
+    problemdetails:
+      enabled: true
+  data:
+    redis:
+      url: ${REDIS_URL:redis://127.0.0.1:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        max.block.ms: 5000
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        allow.auto.create.topics: false
+    listener:
+      ack-mode: record
+app:
+  internal-token: ${INTERNAL_TOKEN}
+  public-origin: ${PUBLIC_ORIGIN}
+  jwt-public-key: ${JWT_PUBLIC_KEY:}
+  jwt-private-key: ${JWT_PRIVATE_KEY:}
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+  redis:
+    enabled: ${REDIS_ENABLED:true}
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  health:
+    redis:
+      enabled: false
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACE_SAMPLE_RATE:0.1}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://127.0.0.1:4318/v1/traces}
+logging:
+  structured:
+    format:
+      console: ecs

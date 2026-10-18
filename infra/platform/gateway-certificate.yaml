@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: brokecart-gateway
+  namespace: kong
+spec:
+  secretName: brokecart-gateway-tls
+  duration: 2160h
+  renewBefore: 360h
+  dnsNames:
+    - brokecart.com
+    - "*.brokecart.com"
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+  issuerRef:
+    name: brokecart-local-ca
+    kind: ClusterIssuer
