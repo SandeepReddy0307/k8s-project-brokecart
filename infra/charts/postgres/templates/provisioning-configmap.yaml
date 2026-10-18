@@ -1,0 +1,87 @@
+{{- if .Values.provisioning.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-provisioning
+  namespace: {{ .Release.Namespace }}
+data:
+  provision.sh: |
+    #!/bin/sh
+    set -eu
+
+    for service in {{ join " " .Values.provisioning.services }}; do
+      credentials="/etc/service-credentials/$service"
+
+      PROVISION_USER="$(cat "$credentials/username")"
+      PROVISION_PASSWORD="$(cat "$credentials/password")"
+      PROVISION_DATABASE="$(cat "$credentials/database")"
+
+      export PROVISION_USER PROVISION_PASSWORD PROVISION_DATABASE
+
+      # Protect the administrator account and system databases.
+      if [ "$PROVISION_USER" = "$PGUSER" ]; then
+        echo "Refusing to modify the administrator account" >&2
+        exit 1
+      fi
+
+      case "$PROVISION_DATABASE" in
+        postgres|template0|template1)
+          echo "Refusing to provision a system database" >&2
+          exit 1
+          ;;
+      esac
+
+      if [ -z "$PROVISION_USER" ] ||
+         [ -z "$PROVISION_PASSWORD" ] ||
+         [ -z "$PROVISION_DATABASE" ]; then
+        echo "Missing credentials for $service" >&2
+        exit 1
+      fi
+
+      echo "Provisioning database for $service"
+
+      psql --no-password \
+        --set=ON_ERROR_STOP=1 \
+        --file=/scripts/provision.sql
+
+      unset PROVISION_USER PROVISION_PASSWORD PROVISION_DATABASE
+    done
+
+    echo "Database provisioning completed"
+
+  provision.sql: |
+    \getenv service_user PROVISION_USER
+    \getenv service_password PROVISION_PASSWORD
+    \getenv service_database PROVISION_DATABASE
+
+    SELECT format('CREATE ROLE %I LOGIN', :'service_user')
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pg_roles
+      WHERE rolname = :'service_user'
+    )
+    \gexec
+
+    SELECT format(
+      'ALTER ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+      :'service_user',
+      :'service_password'
+    )
+    \gexec
+
+    SELECT format(
+      'CREATE DATABASE %I OWNER %I',
+      :'service_database',
+      :'service_user'
+    )
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pg_database
+      WHERE datname = :'service_database'
+    )
+    \gexec
+
+    SELECT format(
+      'REVOKE ALL ON DATABASE %I FROM PUBLIC',
+      :'service_database'
+    )
+    \gexec
+{{- end }}

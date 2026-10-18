@@ -1,0 +1,141 @@
+{{- if .Values.provisioning.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-provisioning
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-provisioning
+    spec:
+      restartPolicy: Never
+      serviceAccountName: postgres
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: provision
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              attempts=0
+
+              until psql --no-password -X \
+                --set=ON_ERROR_STOP=1 \
+                -c "SELECT 1" >/dev/null 2>&1; do
+                attempts=$((attempts + 1))
+
+                if [ "$attempts" -ge 60 ]; then
+                  echo "Unable to connect to PostgreSQL after 60 attempts" >&2
+                  exit 1
+                fi
+
+                echo "Waiting for PostgreSQL connection"
+                sleep 5
+              done
+
+              exec /bin/sh /scripts/provision.sh
+
+          env:
+            - name: PGHOST
+              value: {{ printf "postgres.%s.svc.cluster.local" .Release.Namespace | quote }}
+
+            - name: PGPORT
+              value: "5432"
+
+            - name: PGDATABASE
+              value: postgres
+
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: username
+
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: password
+
+            - name: PGSSLMODE
+              value: verify-full
+
+            - name: PGSSLROOTCERT
+              value: /etc/postgres-ca/ca.crt
+
+            - name: PGCONNECT_TIMEOUT
+              value: "5"
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+
+            - name: ca
+              mountPath: /etc/postgres-ca
+              readOnly: true
+
+            - name: tmp
+              mountPath: /tmp
+
+            {{- range .Values.provisioning.services }}
+            - name: {{ printf "credentials-%s" . }}
+              mountPath: {{ printf "/etc/service-credentials/%s" . | quote }}
+              readOnly: true
+            {{- end }}
+
+      volumes:
+        - name: scripts
+          configMap:
+            name: postgres-provisioning
+
+        - name: ca
+          secret:
+            secretName: {{ .Values.tls.secretName | quote }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+
+        - name: tmp
+          emptyDir: {}
+
+        {{- range .Values.provisioning.services }}
+        - name: {{ printf "credentials-%s" . }}
+          secret:
+            secretName: {{ printf "%s-database-credentials" . | quote }}
+        {{- end }}
+{{- end }}

@@ -27,3 +27,26 @@ resources:
     memory: 256Mi
   limits:
     memory: 1Gi
+
+provisioning:
+  enabled: true
+
+  openbao:
+    role: database-provisioner
+    serviceAccount: database-provisioner
+
+  services:
+    - catalog
+    - pricing
+    - identity
+    - cart
+    - checkout
+    - orders
+    - inventory
+    - payments
+    - payment-provider
+    - shipping
+    - returns
+    - notifications
+    - search
+    - reporting
