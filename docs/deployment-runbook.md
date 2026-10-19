@@ -78,6 +78,8 @@ This check rejects pending-ci and placeholder Docker Hub owners. It verifies fil
 
 Argo CD is a platform component, installed once. The chart version below was retrieved and rendered successfully while preparing this configuration.
 
+The application controller has a 512Mi memory request, a 2Gi limit and a `GOMEMLIMIT` of 1536MiB. Its status and operation processor counts are reduced to five and two to limit concurrent work on this local cluster. The earlier 768Mi limit caused repeated OOM kills while syncing the backend Applications, leaving their new configuration unapplied. If Applications remain OutOfSync, inspect the controller's readiness, restart count and last termination reason before repeatedly triggering syncs. Apply platform values changes through this Helm release; application changes remain managed by Argo CD.
+
 ```bash
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update argo

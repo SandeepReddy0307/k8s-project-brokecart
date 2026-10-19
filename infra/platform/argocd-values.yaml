@@ -103,14 +103,19 @@ configs:
 
   params:
     server.insecure: true
+    controller.status.processors: "5"
+    controller.operation.processors: "2"
 
 global:
   domain: argocd.brokecart.com
 
 controller:
+  env:
+    - name: GOMEMLIMIT
+      value: 1536MiB
   resources:
-    requests: {cpu: 100m, memory: 256Mi}
-    limits: {memory: 768Mi}
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 2Gi}
 
 repoServer:
   resources:
