@@ -1,3 +1,9 @@
+# Shared local PostgreSQL: 14 services x 2 replicas x 2 connections = 56.
+# Service values extend this map; Spring environment properties override YAML.
+config:
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "2"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+
 database:
   secretName: database-credentials
   host: postgres.brokecart-postgres.svc.cluster.local

@@ -53,6 +53,11 @@ def main():
         assert hpa['scaleTargetRef']['name'] == service
         assert hpa['minReplicas'] == 1 and hpa['maxReplicas'] == 2
         configmaps = {d['metadata']['name'] for d in resources_by_kind['ConfigMap']}
+        app_config = next(d['data'] for d in resources_by_kind['ConfigMap']
+                          if d['metadata']['name'] == service + '-config')
+        assert app_config['SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE'] == '2'
+        assert app_config['SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE'] == '1'
+        assert app_config['PORT'] == '8080', 'Service config must merge with pool defaults'
         volumes = {v['name']: v for v in pod['volumes']}
         for volume in volumes.values():
             if 'configMap' in volume:
