@@ -1,8 +1,8 @@
 # Application Helm chart: catalog first
 
-The chart at infra/charts/application supports all 14 HTTP backends. Catalog is the reference service, using infra/values/catalog.yaml and namespace brokecart-catalog. It is not yet a frontend or maintenance-worker chart.
+The chart at infra/charts/application supports all 14 HTTP backends. Catalog is the reference service, using infra/values/catalog.yaml and namespace brokecart-catalog. Frontend and maintenance use separate charts.
 
-The chart renders catalog and the other service values, including ServiceMonitor, HPA, PDB, network policies and public HTTPRoutes where appropriate. It has not been installed by this step.
+The chart renders catalog and the other service values, including ServiceMonitor, HPA, PDB, network policies and public HTTPRoutes where appropriate. All backend releases are now managed by Argo CD; the [handbook](handbook/README.md) describes the completed deployment.
 
 ## How the Pod receives configuration
 
@@ -25,15 +25,15 @@ Catalog never receives JWT_PRIVATE_KEY. Only an identity deployment with securit
 
 ## Deployment and Service
 
-Deployment catalog manages a ReplicaSet. HPA manages the replica count between one and two Pods by default; the Deployment omits replicas while HPA is enabled to avoid competing reconciliation. The Pod uses ServiceAccount catalog; ESO has separate ServiceAccounts for database, application-security and Kafka credential retrieval.
+Deployment catalog manages a ReplicaSet. HPA manages the replica count with local minimum and maximum both one; the Deployment omits replicas while HPA is enabled to avoid competing reconciliation. The Pod uses ServiceAccount catalog; ESO has separate ServiceAccounts for database, application-security and Kafka credential retrieval.
 
 The workload runs as UID/GID 10001, matching its Dockerfile, without an automatic Kubernetes API token. The container root filesystem is read-only; /tmp is a writable emptyDir. The application uses no PVC because its durable state belongs to PostgreSQL and Kafka.
 
-The default request is 100m CPU and 256 MiB RAM, with a 512 MiB memory limit. Java uses up to 65 percent for heap, limits active processor count to two and exits on out-of-memory errors. These are starting values to measure and tune, not a capacity guarantee.
+The local request is 100m CPU and 192Mi RAM, with a 384Mi memory limit. Java uses a 64Mi initial/192Mi maximum heap, Serial GC, one active processor and exits on out-of-memory errors. These are starting values to measure and tune, not a capacity guarantee.
 
-The Deployment keeps three ReplicaSet revisions. Rolling updates allow one extra Pod and zero unavailable Pods; the host needs capacity for that temporary Pod.
+The Deployment keeps two ReplicaSet revisions. Local rolling updates use zero surge and permit one unavailable Pod, accepting a brief service interruption to avoid extra laptop memory use.
 
-Service catalog is ClusterIP port 80, forwarding to the named http port on container port 8080. Its selector matches the Deployment's Pod labels. Other services will use catalog.brokecart-catalog.svc.cluster.local. A public Kong HTTPRoute is still to be configured.
+Service catalog is ClusterIP port 80, forwarding to the named http port on container port 8080. Its selector matches the Deployment's Pod labels. Other services use catalog.brokecart-catalog.svc.cluster.local. Its public Kong HTTPRoute exposes /api/catalog.
 
 ## Health and updates
 
@@ -45,25 +45,25 @@ ServiceAccounts, SecretStores and ExternalSecrets have Argo waves -3, -2 and -1 
 
 ## Image and delivery status
 
-Application image values initially have a placeholder Docker Hub owner and tag pending-ci until CI updates them. It is not a published, deployable image reference. Confirm the Docker Hub owner and let the per-service CI publish an immutable tag before enabling deployment through Argo CD.
+Shared chart defaults have placeholders, but infra/values/catalog.yaml and the other service overrides contain the actual Docker Hub repository and tested full-SHA image tag promoted by CI.
 
-No image was built, pushed or deployed in this step. HPA, PDB, NetworkPolicy and HTTPRoute templates are configured across all backends. VPA is an optional recommendation-only template, disabled until its controller/CRDs exist. See the [deployment runbook](deployment-runbook.md) for activation and live validation.
+The original chart-authoring checks were offline; images and the Argo-managed deployment were subsequently activated. HPA, PDB, NetworkPolicy and HTTPRoute templates are configured across all backends. VPA is an optional recommendation-only template, disabled until its controller/CRDs exist. See the [deployment runbook](deployment-runbook.md) for activation and live validation.
 
 ## Metrics
 
-Catalog enables the optional ServiceMonitor template. It has label release=monitoring, matching the monitoring release's kube-prometheus-stack default selector. Its namespaceSelector looks for Services only in brokecart-catalog, and its label selector matches the catalog Service. Prometheus must itself select ServiceMonitors across application namespaces; that is the pinned monitoring chart's default when the namespace selector is empty. These settings have not been queried from the live cluster in this step.
+Catalog enables the optional ServiceMonitor template. It has label release=monitoring, matching the monitoring release's kube-prometheus-stack default selector. Its namespaceSelector looks for Services only in brokecart-catalog, and its label selector matches the catalog Service. Prometheus must itself select ServiceMonitors across application namespaces; that is the pinned monitoring chart's default when the namespace selector is empty. Verify live Prometheus target selection when diagnosing missing metrics.
 
-Prometheus discovers the Service's ready Pod endpoints and scrapes /actuator/prometheus on the named http port every 30 seconds, with a 10-second timeout. The application already exposes this Spring Boot Actuator endpoint and allows internal scraping without a login. Grafana queries the resulting data in Prometheus; it does not scrape the application directly. See the [Prometheus Operator guide](https://prometheus-operator.dev/docs/developer/getting-started/) for the selector relationships.
+Prometheus discovers the Service's ready Pod endpoints and scrapes /actuator/prometheus on the named http port every 60 seconds, with a 10-second timeout. The application already exposes this Spring Boot Actuator endpoint and allows internal scraping without a login. Grafana queries the resulting data in Prometheus; it does not scrape the application directly. See the [Prometheus Operator guide](https://prometheus-operator.dev/docs/developer/getting-started/) for the selector relationships.
 
-Logs continue through Fluent Bit to Loki, and traces through the configured OpenTelemetry Collector to Tempo. ServiceMonitor configures metrics only. Network policies must later allow the Prometheus Pods to reach the application port, and public HTTPRoutes must not expose Actuator.
+Logs continue through Fluent Bit to Loki, and traces through the configured OpenTelemetry Collector to Tempo. ServiceMonitor configures metrics only. Current NetworkPolicies allow observability-namespace scraping, and public HTTPRoutes do not expose Actuator.
 
-After the application is deployed, check the Prometheus target and use this query in Grafana Explore with its Prometheus data source:
+With the application deployed, check the Prometheus target and use this query in Grafana Explore with its Prometheus data source:
 
 ```promql
 up{namespace="brokecart-catalog", service="catalog"}
 ```
 
-A value of 1 means scraping succeeded; 0 means a discovered target failed its scrape. No series can mean the service has no endpoints or the ServiceMonitor was not selected. Actual metric delivery has not been tested because catalog is not deployed yet.
+A value of 1 means scraping succeeded; 0 means a discovered target failed its scrape. No series can mean the service has no endpoints or the ServiceMonitor was not selected. The application is deployed; end-to-end telemetry inspection must still accompany the planned deployed business-flow tests.
 
 ## Local checks
 

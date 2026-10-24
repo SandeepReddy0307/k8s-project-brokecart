@@ -2,6 +2,10 @@
 
 **Full cart, empty wallet.** A runnable shopping application for learning distributed commerce on a local kind cluster.
 
+**Start with the [complete end-to-end handbook](docs/handbook/README.md): cluster setup, every platform component, every service, files, commands, CI/CD, security, observability and troubleshooting.**
+
+The local deployment was verified Synced/Healthy on 2026-10-24 with all backends at one replica and HPA min/max one. The deployed shopping journey remains a separate acceptance test; infrastructure readiness does not certify business correctness.
+
 The repository contains the application source, Maven builds, Dockerfiles, Helm charts, selective GitHub Actions workflows and Argo CD definitions for the local kind learning environment. Follow the [deployment runbook](docs/deployment-runbook.md) to review and activate them using your GitHub Environment and local self-hosted runner. Definitions in Git do not deploy the stack until the delivery flow is activated.
 
 ## Applications
@@ -85,7 +89,7 @@ From the root, `python3 tests/real_dependencies.py` runs those contracts against
 
 Read [architecture](docs/architecture.md), [configuration](docs/configuration.md), and [verification](docs/verification.md) before writing the deployment.
 
-Kafka infrastructure configuration, secret bootstrap, read-only Kafka UI, and verification are documented in [Kafka setup](docs/kafka-setup.md). Elasticsearch persistence, TLS and search-user provisioning are documented in [Elasticsearch setup](docs/elasticsearch-setup.md). These charts are prepared for the planned Argo CD deployment; they are not installed by building application images.
+Kafka infrastructure configuration, secret bootstrap, read-only Kafka UI, and verification are documented in [Kafka setup](docs/kafka-setup.md). Elasticsearch persistence, TLS and search-user provisioning are documented in [Elasticsearch setup](docs/elasticsearch-setup.md). These charts are deployed by Argo CD; building application images alone does not install Kubernetes resources.
 
 ## Scope and limits
 

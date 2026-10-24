@@ -1,10 +1,10 @@
 # Kafka and Kafka UI
 
-These files prepare the Kafka portion of BrokeCart for the later GitHub Actions/Argo CD delivery flow. They do not install applications into kind merely by being present in Git. The Argo CD Application manifests are not applied until the platform, health checks, and reviewed configuration are ready.
+These files define the deployed Kafka portion of BrokeCart in the GitHub Actions/Argo CD delivery flow. They do not install applications into kind merely by being present in Git. The Argo CD Application manifests are not applied until the platform, health checks, and reviewed configuration are ready.
 
 ## What runs where
 
-Catalog's application-chart integration is now being prepared. With `kafka.enabled=true`, it renders ServiceAccount `catalog-kafka-secrets`, SecretStore `catalog-kafka-openbao`, ExternalSecret `catalog-kafka-credentials`, and ConfigMap `catalog-kafka-config` in `brokecart-catalog`. The dedicated OpenBao role reads only `brokecart/catalog/kafka`.
+Catalog's application-chart integration is deployed. With `kafka.enabled=true`, it renders ServiceAccount `catalog-kafka-secrets`, SecretStore `catalog-kafka-openbao`, ExternalSecret `catalog-kafka-credentials`, and ConfigMap `catalog-kafka-config` in `brokecart-catalog`. The dedicated OpenBao role reads only `brokecart/catalog/kafka`.
 
 ESO formats the login into the generated Secret's `sasl-jaas-config` key. The public ConfigMap contains the CA and Spring Kafka settings for SASL_SSL/PLAIN, PEM trust and hostname verification. The Deployment mounts this ConfigMap at `/etc/kafka-client`, populates `KAFKA_SASL_JAAS_CONFIG` from the Secret and sets `SPRING_CONFIG_ADDITIONAL_LOCATION=file:/etc/kafka-client/kafka.yaml` when Kafka is enabled. Rendering is checked; deployed application connectivity remains to be tested. Credential changes require an application rollout because these environment variables are read at startup.
 
@@ -118,7 +118,7 @@ Argo CD must first be installed using `infra/platform/argocd-values.yaml`, inclu
 
 `infra/argocd/applications/kafka.yaml` and `kafka-ui.yaml` point to the charts in Git. Do not apply them until the planned delivery stage. Argo CD renders Helm charts and manages Kubernetes resources; this does not create Helm CLI release-history Secrets, so Argo-managed applications will not appear as Helm-installed releases in `helm list`.
 
-The two Applications are independent: resource waves inside one do not sequence another. The UI can start while Kafka is unavailable and reports the cluster offline until it can connect. If a parent deployment later needs strict cross-Application sequencing, configure parent Application health/dependency handling rather than relying on these child waves alone.
+The two Applications are independent: resource waves inside one do not sequence another. The UI can start while Kafka is unavailable and reports the cluster offline until it can connect. The current root Application and custom Application health check provide cross-Application waves; isolated child syncs do not provide that ordering.
 
 The hook Job is recreated for full synchronizations and removed on success. Failures remain available for diagnostics. Do not use selective resource sync for operations that require the provisioning hook.
 
@@ -162,7 +162,7 @@ The dependency archive under `infra/charts/kafka-ui/charts/` is downloaded and i
 - `tests/kafka_runtime.py` passed using three disposable Kafka containers and a disposable Kafbat container: TLS/admin startup; all 18 topics with three partitions/replicas; orders-to-inventory delivery; rejected unauthorized writes, wrong passwords and hostname mismatches; read-only UI Kafka access; authenticated browser login and topic browsing; and continued `acks=all` writes after stopping one combined broker/controller.
 - OpenBao bootstrap added the two UI credential paths and its scoped role/policy while retaining existing Kafka passwords.
 
-These are completed configuration/container tests. The charts and Argo CD Applications have not been deployed into kind. ESO synchronization, certificate issuance with the real issuer, Kong browser access and cluster-specific scheduling will be verified during the agreed automated deployment stage.
+These are completed configuration/container tests. The charts and Applications were subsequently deployed into kind and verified Synced/Healthy on 2026-10-24. This operational snapshot does not replace the pending full deployed shopping-flow test. See the [handbook](handbook/README.md).
 
 ## Operations and troubleshooting after deployment
 

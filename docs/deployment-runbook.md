@@ -1,4 +1,8 @@
-# Complete local deployment runbook
+# Local deployment activation runbook
+
+For the complete beginner-oriented setup, file explanations, service walkthroughs and incident commands, use the [end-to-end handbook](handbook/README.md). This shorter runbook focuses on delivery activation.
+
+Current baseline verified 2026-10-24: all 23 Applications Synced/Healthy; backend Deployment/HPA cap one; 384Mi backend memory limits; zero-surge rollouts. The complete deployed shopping journey is pending user acceptance testing.
 
 The application delivery files are now prepared for all 14 HTTP backends, the frontend, maintenance jobs, PostgreSQL, Redis, three-node Kafka, Kafka UI and Elasticsearch. The existing platform (Cilium, metrics-server, Kong/Gateway API, cert-manager, OpenBao/ESO, Prometheus/Grafana/Loki/Tempo/Fluent Bit/OTel) remains in place.
 
@@ -162,7 +166,7 @@ Run each maintenance task manually once as documented in [frontend and maintenan
 
 ## Limits and exercises
 
-All kind nodes share the same 15 GiB WSL host; their displayed capacities must not be added together. Baseline backend replicas/HPA minimums are one, maximums two. Load tests and simultaneous scale-up can exceed local RAM; observe resources before increasing replicas.
+All kind nodes share the same 15 GiB WSL host; their displayed capacities must not be added together. Baseline backend replicas and HPA minimums/maximums are all one. Increase only selected service caps during controlled scaling exercises after checking headroom. Load tests and simultaneous scale-up can exceed local RAM; observe resources before increasing replicas.
 
 A backend PDB with maxUnavailable=1 permits eviction of its sole replica. It does not make a single replica highly available. Kafka's PDB retains two of its three combined broker/controllers during voluntary disruptions. Replica count alone does not provide three independent physical failure domains on one host.
 

@@ -4,7 +4,7 @@ The platform components already installed in namespace `observability` perform c
 
 ## Metrics, logs and traces take different paths
 
-1. Each Java service exposes `/actuator/prometheus`. Its ServiceMonitor tells the existing Prometheus Operator which Service and named HTTP port to scrape. Prometheus collects the metrics every 30 seconds. Grafana queries Prometheus when you open a panel; Grafana is not the metric store.
+1. Each Java service exposes `/actuator/prometheus`. Its ServiceMonitor tells the existing Prometheus Operator which Service and named HTTP port to scrape. Backend ServiceMonitors collect the metrics every 60 seconds; the platform global default remains 30 seconds. Grafana queries Prometheus when you open a panel; Grafana is not the metric store.
 2. Java writes structured logs to standard output. Kubernetes/containerd stores container logs on each node. The Fluent Bit DaemonSet tails those files and adds Kubernetes metadata. It sends JSON log records to Loki through `loki-gateway`. Grafana reads Loki. The actual Fluent Bit labels are `job`, `cluster`, `namespace`, `pod` and `container`.
 3. Micrometer/Spring produces request spans. The app exports them to the OpenTelemetry Collector's HTTP endpoint `/v1/traces`. The collector batches/forwards them to Tempo. Grafana queries Tempo. A running collector alone does not prove that an application is exporting useful spans.
 
@@ -65,7 +65,7 @@ helm template observability-config infra/charts/observability-config \
 python3 tests/observability_configuration.py
 ```
 
-The four alert expressions also passed promtool check rules using the official Prometheus v3.5.0 image. The checks validate Helm output, dashboard JSON, real Fluent Bit label conventions, dashboard data source references, and alert wiring. They do not demonstrate live end-to-end telemetry. After Argo CD deploys the applications, generate browser/API traffic, verify Prometheus targets, inspect Loki log records, search Tempo for traces, and evaluate the alerts in the actual monitoring stack.
+The four alert expressions also passed promtool check rules using the official Prometheus v3.5.0 image. The checks validate Helm output, dashboard JSON, real Fluent Bit label conventions, dashboard data source references, and alert wiring. They do not demonstrate live end-to-end telemetry. With the applications deployed, generate browser/API traffic, verify Prometheus targets, inspect Loki log records, search Tempo for traces, and evaluate the alerts in the actual monitoring stack.
 
 On 2026-10-18, a disposable cached catalog container was started with the explicit local profile, no network access and no external dependencies. After a successful catalogue API request, its actual `/actuator/prometheus` output confirmed `http_server_requests_seconds_count`, `http_server_requests_seconds_sum`, `jvm_memory_used_bytes` and `jvm_threads_live_threads`, including `application="catalog-service"` and HTTP status/URI tags. This verifies the exported metric names; it does not demonstrate collection by the Kubernetes Prometheus instance.
 

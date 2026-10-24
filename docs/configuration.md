@@ -27,9 +27,9 @@ Normal mode requires PostgreSQL and valid RSA keys. Use separate databases and r
 | TRACE_SAMPLE_RATE | Trace probability, default 0.1 |
 | OTEL_EXPORTER_OTLP_TRACES_ENDPOINT | OTLP HTTP trace URL including `/v1/traces` |
 
-Peer URLs use `CATALOG_URL`, `PRICING_URL`, `CART_URL`, `ORDERS_URL`, `PAYMENT_PROVIDER_URL` and the corresponding uppercase service name with hyphens replaced by underscores. Pricing's catalog client uses `CATALOG_BASE_URL`. Defaults point to local process ports; container deployments must override actual dependencies with Kubernetes Service addresses. Environment variables configure applications; Secrets/ConfigMaps are yours to write.
+Peer URLs use `CATALOG_URL`, `PRICING_URL`, `CART_URL`, `ORDERS_URL`, `PAYMENT_PROVIDER_URL` and the corresponding uppercase service name with hyphens replaced by underscores. Pricing's catalog client uses `CATALOG_BASE_URL`. Defaults point to local process ports; container deployments must override actual dependencies with Kubernetes Service addresses. Environment variables configure applications; the shared application Helm chart renders the required Secret references and ConfigMaps.
 
-Kafka's baseline is PLAINTEXT for local learning. Supply Spring Kafka security properties for TLS/SASL when you implement them. JDBC/Redis/Elasticsearch transport security is similarly configured through their connection settings; this source does not provision certificates.
+The Kubernetes chart supplies Spring Kafka SASL_SSL/PLAIN settings, PEM CA trust and hostname verification via an additional configuration file. PostgreSQL and Elasticsearch clients use verified TLS. Redis uses a password over local cluster TCP without TLS. cert-manager provides the server certificates; OpenBao/ESO supplies credential data. Unconfigured local-process defaults are not the Kubernetes security configuration.
 
 The maintenance worker requires `INTERNAL_TOKEN`, `TASK=expire-reservations` with `INVENTORY_URL`, or `TASK=reconcile-payments` with `PAYMENTS_URL`. It exits after one invocation.
 

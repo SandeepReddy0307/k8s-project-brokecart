@@ -4,7 +4,7 @@ The frontend chart runs the existing React production build using its unprivileg
 
 The frontend gets no database passwords, internal token, Kubernetes API token, or JWT signing key. Its `/health` endpoint supplies readiness/liveness checks. There is no Prometheus endpoint in this Nginx image, so no frontend ServiceMonitor is created. Logs go to stdout/stderr and the existing Fluent Bit pipeline. The root filesystem is read-only, with a bounded writable `/tmp`. One replica keeps the local memory footprint small. Optional HPA/PDB settings allow a later availability exercise; a PDB with one minimum available replica can block node drains when only one replica exists.
 
-`infra/values/frontend.yaml` holds its image reference. CI replaces the placeholder repository/tag before Argo CD deployment. To inspect it:
+`infra/values/frontend.yaml` holds its image reference. CI maintains its actual repository/full-SHA tag before Argo CD deployment. To inspect it:
 
 ```bash
 helm lint infra/charts/frontend -f infra/values/frontend.yaml

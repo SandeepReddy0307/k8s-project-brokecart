@@ -43,11 +43,11 @@ HTTP and transport TLS are enabled. TLS files mount beneath Elasticsearch's conf
 | OpenBao KV v2 path | Fields | Reader |
 |---|---|---|
 | brokecart/elasticsearch/admin | username=elastic, password | Elasticsearch namespace only |
-| brokecart/search/elasticsearch | username=brokecart_search, password | Provisioning Job and future search-service secret delivery |
+| brokecart/search/elasticsearch | username=brokecart_search, password | Provisioning Job and deployed Search secret delivery |
 
 The server ESO role `elasticsearch-secrets` is bound to the same-named ServiceAccount in `brokecart-elasticsearch`. Its policy can read these two paths.
 
-The future application role `search-elasticsearch-secrets` is bound to the same-named ServiceAccount in `brokecart-search`. Its policy can read only the search credential. The search application's chart still needs to create its ExternalSecret/ServiceAccount/SecretStore wiring.
+The application role `search-elasticsearch-secrets` is bound to the same-named ServiceAccount in `brokecart-search`. Its policy can read only the search credential. The shared application chart conditionally creates Search's ExternalSecret/ServiceAccount/SecretStore wiring and Java CA truststore initialization.
 
 The Job authenticates as elastic to create a native role/user. The search role can read, write and create only `brokecart-products`. It cannot administer users or access other indices. The application currently attempts to create that index before indexing products, which is why create_index is included.
 
@@ -99,7 +99,7 @@ This step tests the Elasticsearch dependency directly; it does not yet verify th
 
 ## Verification
 
-On 2026-10-18, Helm lint, the 12-resource configuration check and the disposable runtime test passed. The runtime test verified repeatable provisioning, product indexing/search, permission denials, TLS trust and document/native-user persistence after container restart. Its fixture was removed afterward. Elasticsearch has not been deployed into kind by this step.
+On 2026-10-18, Helm lint, the 12-resource configuration check and the disposable runtime test passed. The runtime test verified repeatable provisioning, product indexing/search, permission denials, TLS trust and document/native-user persistence after container restart. Its fixture was removed afterward. Elasticsearch was subsequently deployed into kind and verified Synced/Healthy on 2026-10-24; complete deployed business-flow acceptance remains pending. See the [handbook](handbook/README.md).
 
 Offline checks:
 
