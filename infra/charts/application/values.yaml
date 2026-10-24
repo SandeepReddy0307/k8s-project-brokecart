@@ -1,4 +1,4 @@
-# Shared local PostgreSQL: 14 services x 2 replicas x 2 connections = 56.
+# Shared local PostgreSQL: 14 services x 1 replica x 2 connections = 28.
 # Service values extend this map; Spring environment properties override YAML.
 config:
   SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "2"
@@ -12,12 +12,15 @@ database:
 deployment:
   enabled: false
   replicas: 1
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: 2
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
 
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 2
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
 
 pdb:
@@ -84,17 +87,17 @@ service:
 monitoring:
   enabled: false
   prometheusRelease: monitoring
-  interval: 30s
+  interval: 60s
   scrapeTimeout: 10s
 
-javaToolOptions: "-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError"
+javaToolOptions: "-Xms64m -Xmx192m -XX:+UseSerialGC -XX:ActiveProcessorCount=1 -XX:+ExitOnOutOfMemoryError"
 
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 192Mi
   limits:
-    memory: 512Mi
+    memory: 384Mi
 
 security:
   enabled: false

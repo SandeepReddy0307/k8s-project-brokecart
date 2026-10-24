@@ -51,13 +51,18 @@ def main():
             assert selector.items() <= labels.items(), (service, kind)
         hpa = resources_by_kind['HorizontalPodAutoscaler'][0]['spec']
         assert hpa['scaleTargetRef']['name'] == service
-        assert hpa['minReplicas'] == 1 and hpa['maxReplicas'] == 2
+        assert hpa['minReplicas'] == 1 and hpa['maxReplicas'] == 1
+        assert deployment['spec']['strategy']['rollingUpdate'] == {'maxUnavailable': 1, 'maxSurge': 0}
+        runtime = next(c for c in pod['containers'] if c['name'] == 'application')
+        assert runtime['resources']['requests']['memory'] == '192Mi'
+        assert runtime['resources']['limits']['memory'] == '384Mi'
         configmaps = {d['metadata']['name'] for d in resources_by_kind['ConfigMap']}
         app_config = next(d['data'] for d in resources_by_kind['ConfigMap']
                           if d['metadata']['name'] == service + '-config')
         assert app_config['SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE'] == '2'
         assert app_config['SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE'] == '1'
         assert app_config['PORT'] == '8080', 'Service config must merge with pool defaults'
+        assert app_config['TRACE_SAMPLE_RATE'] == '0.1'
         volumes = {v['name']: v for v in pod['volumes']}
         for volume in volumes.values():
             if 'configMap' in volume:

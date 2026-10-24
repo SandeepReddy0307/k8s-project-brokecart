@@ -61,7 +61,7 @@ assert all(service["metadata"]["labels"][k] == v
 endpoint = monitor["spec"]["endpoints"][0]
 assert endpoint["port"] in {p["name"] for p in service["spec"]["ports"]}
 assert endpoint["path"] == "/actuator/prometheus"
-assert endpoint["scrapeTimeout"] == "10s" and endpoint["interval"] == "30s"
+assert endpoint["scrapeTimeout"] == "10s" and endpoint["interval"] == "60s"
 assert not any(r["kind"] == "ServiceMonitor" for r in yaml.safe_load_all(
     render("--set", "monitoring.enabled=false")) if r)
 for kind, path in [("startupProbe", "/actuator/health/liveness"),

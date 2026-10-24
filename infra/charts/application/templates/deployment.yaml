@@ -21,8 +21,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+      maxUnavailable: {{ .Values.deployment.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.deployment.rollingUpdate.maxSurge }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ .Release.Name }}

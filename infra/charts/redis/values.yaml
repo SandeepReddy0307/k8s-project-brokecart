@@ -18,17 +18,17 @@ storage:
   size: 2Gi
 
 redis:
-  maxmemory: 256mb
+  maxmemory: 128mb
   maxmemoryPolicy: noeviction
   appendonly: true
   appendfsync: everysec
 
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 50m
+    memory: 64Mi
   limits:
-    memory: 512Mi
+    memory: 256Mi
 
 
 networkPolicy:
